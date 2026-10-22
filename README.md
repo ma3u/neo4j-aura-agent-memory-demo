@@ -1,26 +1,231 @@
-# Neo4j Agent Memory for Claude Code and GitHub Copilot
+<!-- markdownlint-configure-file { "MD033": { "allowed_elements": ["details", "summary"] } } -->
+
+# Neo4j Agent Memory for Claude Code, Antigravity and GitHub Copilot
 
 Hacknight demo for [**Graphs Gone Wild**](https://globalai.community/e/ack9t53d) (NODES 2026 pop-up, Global AI Berlin,
 23 October 2026).
 
-**The question:** can a coding agent remember a project across sessions, keep a correction, and still say "I don't know"
-when it doesn't? With the memory as a graph in Neo4j that other agents and dashboards can read.
+Your coding agent starts a new chat. Does it still know who owns a service, why the team made a decision, and which
+deadline matters? This demo stores that knowledge in Neo4j so another session, or another agent, can retrieve it.
 
-**Two ways to give Claude Code Neo4j memory**, same story, same ontology, same evaluation:
+**Two ways to do it:** run the **neo4j-agent-memory SDK and its MCP server yourself**, or connect to the hosted
+**Neo4j Agent Memory Service (NAMS)**. Both store graph memory in Neo4j. The choice is how much you want to manage.
 
-| | **1. neo4j-agent-memory on Aura** | **2. NAMS** |
+**Start here:** [Choose a solution](#choose-a-solution) · [Connect your agent](#connect-your-agent) ·
+[See the results](#final-results-what-to-take-away) · [Understand the story](#the-story) ·
+[Engineering notes](#what-we-learned-building-it).
+
+## Choose a solution
+
+### Option 1: neo4j-agent-memory on your Aura instance
+
+**Choose this when you want control over the memory pipeline and direct access to the graph.**
+
+[`neo4j-agent-memory`](https://neo4j.com/labs/agent-memory/) is an open-source SDK. In this demo, its MCP server runs
+on your machine, extracts entities using your configured model, and writes to your Neo4j Aura database over Bolt.
+Aura manages the database; **you run the memory server and configure its models**.
+
+```text
+Your coding agent -> local SDK MCP server -> your Neo4j Aura database
+```
+
+It fits a team that already uses Aura, wants memory next to application data, needs structured facts with validity
+dates, or wants to customize extraction, embeddings and application-specific graph queries. The tradeoff is more
+setup: Python dependencies, credentials, model configuration and SDK maintenance are your responsibility.
+
+**Start with:** [Set up the SDK on Aura](docs/setup-aura.md).
+
+### Option 2: NAMS, the hosted memory service
+
+**Choose this when you want to connect agents without operating the memory server or extraction workers.**
+
+[NAMS](https://memory.neo4jlabs.com) provides a workspace, hosted MCP endpoint, background processing and a console
+for inspecting memory and reviewing extracted entities. The workspace can use service-managed Neo4j storage or a
+supported bring-your-own database. **NAMS runs the memory service either way.**
+
+```text
+Your coding agent -> hosted NAMS MCP server -> workspace Neo4j database
+```
+
+It fits a team trying persistent memory for the first time, connecting several MCP-capable clients, or preferring a
+workspace UI over maintaining a local extraction pipeline. The tradeoff is dependence on the service's available
+operations, processing behavior, access scopes and current workspace limits. It does not expose every Bolt SDK feature.
+
+**Start with:** [Set up a NAMS workspace](docs/setup-nams.md).
+
+### Which should I use?
+
+| Your priority | Choose | Why |
 | --- | --- | --- |
-| What | Neo4j Labs open-source SDK [`neo4j-agent-memory`](https://neo4j.com/labs/agent-memory/) 0.7.0 with **its own MCP server** (16 tools in the extended Bolt profile) | hosted [Neo4j Agent Memory Service](https://memory.neo4jlabs.com): hosted MCP server (47 tools observed in this setup; visibility depends on deployment and scopes) + `nams-hooks` plugin |
-| Where the graph lives | **your Neo4j Aura instance**, next to your data | a NAMS workspace (managed Aura, or bring your own) |
-| Extraction | in the SDK (LLM via LiteLLM), driven by the ontology file | in NAMS (background workers), driven by the workspace ontology |
-| Claude Code | `.mcp.json` → `bin/agent-memory-mcp` + `bin/agent-memory-hook` (session capture + recall) | `.mcp.json` → `https://memory.neo4jlabs.com/mcp` (OAuth) + `nams-hooks` |
-| GitHub Copilot (VS Code) | `.vscode/mcp.json` → the same `bin/agent-memory-mcp` launcher | `.vscode/mcp.json` → the hosted NAMS endpoint (OAuth) |
-| Session history | every prompt, answer and tool call as messages + reasoning traces in Aura | every prompt and answer as conversations in NAMS |
-| You see it in | Aura console: Query, Bloom, **Dashboards** | NAMS console: Entity Explorer, Memory Browser, Review |
-| Setup guide | **[docs/setup-aura.md](docs/setup-aura.md)** | **[docs/setup-nams.md](docs/setup-nams.md)** |
+| Get started without running a memory server | **NAMS** | Hosted MCP, extraction workers and workspace UI. |
+| Control extraction models and embeddings | **SDK on Aura** | Configure the pipeline in your own process. |
+| Use direct graph writes or structured facts | **SDK on Aura** | Bolt offers operations unavailable through the NAMS Python wrappers. |
+| Share a hosted memory workspace across clients | **NAMS** | Connect clients to the same authorized workspace. |
+| Extend an application that already uses your Aura graph | **SDK on Aura** | Integrate memory with your own graph and queries. |
+| Keep your database but outsource memory processing | **NAMS with a supported external database** | Database ownership and memory-service operation are separate choices. |
 
-Both use **one ontology**: the NAMS "Agent Memory" template extended with a software team's vocabulary
-([ontology/](ontology/)). Pitch script with all links: **[docs/live-demo.md](docs/live-demo.md)**.
+**Recommendation:** start with **NAMS** for a managed experience. Choose **SDK on Aura** when you have a concrete
+need for its additional control or Bolt capabilities. The SDK can also access NAMS; these are deployment choices,
+not competing database engines ([official backend capabilities](https://neo4j.com/labs/agent-memory/reference/backend-capabilities/)).
+
+Neither option makes corrections automatically reliable. Define how old claims are superseded, and test what the
+agent retrieves. Also check current costs and data-handling requirements: this demo has no cost benchmark, a
+configured external extraction model receives text, and using your own database with NAMS still uses its service.
+Both offerings are Neo4j Labs projects; do not assume a production support SLA.
+
+Both demo paths use **one ontology**, a vocabulary defining the allowed entity types and relationships
+([ontology/](ontology/)). MCP gives the agent memory tools such as search and store. **Hooks are separate:** they
+capture conversations automatically. Connecting an MCP server alone does not record every prompt and answer.
+
+## Connect your agent
+
+The steps are the same in principle: **prepare a backend, connect its MCP server, then verify a real tool call**.
+You do not need both backends. The repository includes configurations for both so you can compare them.
+
+### First, prepare your chosen backend
+
+| Choice | Prepare once | Server name used below |
+| --- | --- | --- |
+| SDK on Aura | Follow [the Aura setup](docs/setup-aura.md): create the Python `venv`, install dependencies, and set Aura/model credentials in the gitignored `.env`. The launcher uses the shared ontology. | `agent-memory` |
+| Hosted NAMS | Follow [the NAMS setup](docs/setup-nams.md): create a workspace and activate the demo ontology. Use OAuth for a supported interactive HTTP client, or an API key for the local proxy. | `nams` |
+
+The hosted HTTP connection does not require a local Python memory server. Python is needed for this demo's scripts
+and for the optional NAMS stdio proxy. Never put passwords or API keys in the shared MCP JSON.
+
+Choose your client: [Claude Code](#claude-code) · [Antigravity](#antigravity-local-preview) ·
+[GitHub Copilot](#github-copilot).
+
+### Claude Code
+
+1. **Open this repository in Claude Code.** Its project configuration is already in [.mcp.json](.mcp.json).
+2. **Approve the project MCP configuration.** Use `/mcp` to see the available servers.
+3. **Select your backend.** Start `agent-memory` for the SDK/Aura option. For NAMS, select `nams`, choose
+   **Authenticate**, complete browser sign-in and select the intended workspace.
+4. **Test retrieval.** Use the [read-only test prompt](#check-that-memory-is-really-used) below and inspect the actual
+   MCP tool response. A plausible answer alone is not a connection test.
+5. **Add automatic capture when you need it.** For Aura, this repo's [.claude/settings.json](.claude/settings.json)
+   wires [bin/agent-memory-hook](bin/agent-memory-hook). For NAMS, install/configure the optional `nams-hooks` plugin
+   using [the NAMS hook instructions](docs/setup-nams.md#step-4-connect-claude-code). Keep only the intended capture
+   backend active when comparing solutions.
+
+**What is verified:** the published demo used Claude Code to write memory and evaluated fresh Claude Code sessions
+reading it. The MCP server supplies tools; the capture hooks are a separate integration.
+
+### Antigravity (local preview)
+
+**Status:** the local Antigravity adapter and NAMS proxy are still uncommitted working-tree changes, not a released
+integration. A fresh clone of the published revision does not yet contain the complete adapter. Native IDE
+autodiscovery has not been verified.
+
+1. **Prepare your backend.** Aura uses the same `.env` and SDK launcher as Claude Code. For the local NAMS proxy,
+   also set `NAMS_API_KEY` in `.env`.
+2. **Add the selected server to the host's MCP configuration.** Use the matching entry from
+   [.agents/mcp_config.json](.agents/mcp_config.json): `agent-memory` launches [bin/agent-memory-mcp](bin/agent-memory-mcp),
+   while `nams` launches [bin/nams-mcp](bin/nams-mcp). Both use stdio, a local process connection.
+3. **Start the host inside this repository.** The supplied definitions locate the launchers with
+   `git rev-parse --show-toplevel`. The NAMS proxy reads its key locally and connects to the hosted service; it
+   does not need an interactive OAuth flow. Do not assume the host discovers the project file automatically.
+4. **Enable capture only if the host supports the supplied hook events.** Register
+   [.agents/hooks.json](.agents/hooks.json) and set `AGENT_MEMORY_HOOKS_BACKEND=aura` or `nams` in the host environment.
+   Both groups are enabled in the file, so explicitly select one backend.
+5. **Test retrieval.** Use the shared [read-only test prompt](#check-that-memory-is-really-used) and inspect the tool
+   call. Verify an actual IDE session separately from the headless protocol adapter.
+
+<details>
+<summary>Antigravity adapter commands and capture behavior</summary>
+
+The local runner uses a **Haystack agent over MCP** and emits Antigravity-shaped hook payloads. It tests the adapter
+protocol, not the Antigravity application's own agent runtime:
+
+```bash
+venv/bin/python demo/run_sessions.py --backend aura --harness antigravity
+venv/bin/python demo/run_sessions.py --backend nams --harness antigravity
+```
+
+These commands write story memory and replace the corresponding backend transcripts. The local runner defaults to
+`antigravity`; pass `--harness claude` for the Claude Code path. The local evaluator adds `antigravity_aura` and
+`antigravity_nams` and changes its default variant list; these are separate from the saved results below.
+
+The hooks handle `SessionStart`, `PreInvocation`, `PostToolUse` and `Stop`. Before the first invocation of a turn,
+they inject recalled memory as an ephemeral message; they also capture prompts, tool activity and final answers.
+The shared daemon handles persistence. Set `AGENT_MEMORY_HOOKS=0` to disable capture during evaluation. The Claude
+Code `nams-hooks` plugin is not needed by this adapter. Implementation: [harness/claude_backends.py](harness/claude_backends.py).
+
+</details>
+
+### GitHub Copilot
+
+1. **Open this repository.** Native Copilot uses the portable [.mcp.json](.mcp.json), whose top-level object is
+   `mcpServers`. It already contains `agent-memory` and `nams`.
+2. **Check native discovery, if the Copilot CLI is installed.** Run these from the repository root:
+
+   ```bash
+   copilot mcp list
+   copilot mcp get agent-memory
+   ```
+
+3. **Enable your selected server in an agent session.** Review any trust prompt. For a supported NAMS HTTP client,
+   complete browser OAuth and select the workspace when requested. VS Code local MCP tools use
+   [.vscode/mcp.json](.vscode/mcp.json) instead; see the configuration note below if the server is missing.
+4. **Test retrieval.** Use the shared [read-only test prompt](#check-that-memory-is-really-used). Expand the tool call
+   and confirm that it came from the selected MCP server.
+
+**What is verified:** native CLI discovery works. Separately, the configured Aura launcher exposed 16 tools and a
+read-only search returned demo evidence. **A Copilot Chat tool call and VS Code picker visibility remain unconfirmed.**
+No automatic Copilot session-capture hooks are installed; ask the agent to store information explicitly when needed.
+
+<details>
+<summary>Copilot Global, VS Code configuration and the missing-server issue</summary>
+
+For a user-wide native configuration, choose **MCP: Add Server → Global → Copilot Global** in supported VS Code
+versions, or merge this entry into `$COPILOT_HOME/mcp-config.json` (default `~/.copilot/mcp-config.json`). Replace the
+example with the absolute path to your checkout and preserve any existing entries:
+
+```json
+{
+  "mcpServers": {
+    "agent-memory": {
+      "type": "stdio",
+      "command": "/absolute/path/to/neo4j-aura-agent-memory-demo/bin/agent-memory-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Run `copilot mcp list` and `copilot mcp get agent-memory` outside the checkout to verify the source is **User**,
+rather than the workspace override. The launcher still reads this checkout's `.env`; keys do not belong in the JSON.
+
+VS Code's workspace and user-profile MCP files use a different top-level key, **`servers`**. Eligible entries can be
+forwarded to a Copilot harness, but **`code --add-mcp` writes the VS Code user profile, not Copilot Global**.
+
+In the tested VS Code 1.142 window, **MCP: List Servers** showed only extension-provided servers despite valid
+workspace/profile entries and a full reload. Native Copilot Global discovery was verified afterward with the CLI;
+that does not establish that the VS Code picker is fixed. Do not keep adding duplicate configurations as proof of
+success: verify a tool call in the intended client.
+
+Official references: [MCP setup](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) and
+[configuration formats and destinations](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
+
+</details>
+
+### Check that memory is really used
+
+If you loaded the demo story, ask the following. Otherwise, ask about something you explicitly stored in your own
+workspace. Replace `agent-memory` with `nams` when using the hosted backend:
+
+```text
+Use only the agent-memory MCP tools to find who owns fraud-api, who their manager is,
+and when the release freeze starts. Report conflicting claims or missing information.
+Do not read repository files, run shell commands, or write new memory.
+```
+
+Check that the intended server actually returned evidence. Missing facts should produce "I don't know", not a
+guess. On this shared demo database, leave `graph_query` disabled: a raw database read could see evaluation answers.
+During evaluation, also disable capture hooks so questions and answers do not become new memory.
+
+**Test status:** the published scores below cover Claude Code and Haystack, not Copilot or a native Antigravity IDE
+run. Server discovery, successful retrieval and an end-to-end client integration are different levels of verification.
 
 ## Final results: what to take away
 
@@ -64,6 +269,9 @@ file/shell/web tools ([harness/claude_backends.py](harness/claude_backends.py)).
 | ![Aura](docs/screenshots/setup/aura-2-claude-code.png) | ![NAMS](docs/screenshots/setup/nams-4-claude-code.png) |
 
 ## Evaluation (Haystack)
+
+<details>
+<summary>Open the scoring method, per-question results and evaluation chart</summary>
 
 [eval/eval_memory.py](eval/eval_memory.py): 10 questions ([eval/questions.json](eval/questions.json)): 4 single-hop,
 3 multi-hop, 1 correction, 2 *not in memory* (the right answer is "I don't know"). An LLM judge (Haystack chat
@@ -114,6 +322,8 @@ rerun: still 100 %, and the eval left the memory untouched (hooks off, read-only
 
 Results go to Aura as `(:DemoEvalVariant)-[:ANSWERED {correct, answer, reason}]->(:DemoEvalQuestion)` and onto the
 dashboard. Raw answers and judge reasons: [eval/results/eval_results.json](eval/results/eval_results.json).
+
+</details>
 
 ## The graph and its vocabulary
 
@@ -177,6 +387,9 @@ The workshop dashboard this demo builds on (GraphRAG vs. vector RAG on the same 
 ![Haystack GraphRAG workshop dashboard](docs/screenshots/aura-graphrag-workshop.png)
 
 ## What we learned building it
+
+<details>
+<summary>Open eight implementation lessons checked against official documentation</summary>
 
 Rechecked against the maintainers' documentation on **22 October 2026**, for **Python SDK 0.7.0**. Below, "observed"
 means this demo's behavior, not a guarantee about every deployment. Both options are Neo4j Labs projects; the
@@ -244,68 +457,44 @@ compatibility guarantee.
    documents source/target fields but does **not** establish this as an intended limitation. Treat it as an observed
    readback issue, verify direction against stored edges, and report a minimal reproduction before generalizing.
 
+</details>
+
 ## Run it
+
+For an interactive MCP connection, follow [Connect your agent](#connect-your-agent). The commands here replay the
+demo and **write memory, transcripts and evaluation artifacts**.
 
 ```bash
 git clone https://github.com/ma3u/neo4j-aura-agent-memory-demo && cd neo4j-aura-agent-memory-demo
 python3.12 -m venv venv && venv/bin/pip install -r requirements.txt
 cp .env.example .env                                   # Aura, NAMS key, Azure OpenAI (or OpenAI)
-venv/bin/python demo/run_sessions.py --backend aura    # 3 Claude Code sessions -> neo4j-agent-memory on Aura
-venv/bin/python demo/run_sessions.py --backend nams    # the same through NAMS
-venv/bin/python eval/eval_memory.py                    # Haystack eval, results -> Aura
+venv/bin/python demo/run_sessions.py --backend aura    # replay the story into Aura
+venv/bin/python demo/run_sessions.py --backend nams    # replay the story into NAMS
+venv/bin/python eval/eval_memory.py --variants no_memory haystack_aura claude_code_aura \
+   haystack_nams claude_code_nams                       # select the published five variants explicitly
 venv/bin/python dashboard/build_dashboard.py           # -> dashboard/aura_dashboard.json
 ```
 
+The published session runner uses Claude Code. **With the local Antigravity preview changes present**, add
+`--harness claude` to each story command to select Claude Code; otherwise that local runner defaults to the
+Antigravity protocol adapter. Do not mix its new runs with the frozen result table without recording the harness.
+
 Check both setups (read-only, nothing is written): `venv/bin/python demo/check_setup.py`.
 
-Interactive: open Claude Code in this folder, approve `agent-memory` and `nams` from `.mcp.json`, authenticate `nams`
-via `/mcp`, and tell it something worth remembering.
-
-## GitHub Copilot in VS Code
-
-[.vscode/mcp.json](.vscode/mcp.json) registers both memory servers for VS Code's local agent tools. It uses VS Code's
-`servers` format, while [.mcp.json](.mcp.json) retains the `mcpServers` format for Claude Code and compatible clients.
-See the [official VS Code MCP setup guide](https://code.visualstudio.com/docs/copilot/customization/mcp-servers).
-
-1. Complete the dependencies and credentials in [the Aura setup](docs/setup-aura.md), or prepare your workspace with
-   [the NAMS setup](docs/setup-nams.md). Open this repository's root folder in VS Code.
-2. Open [.vscode/mcp.json](.vscode/mcp.json) and use **Start**, or run **MCP: List Servers** from the Command Palette.
-   Review the server configuration and accept VS Code's trust prompt to start the backend you want to use.
-3. For **`agent-memory`**, VS Code launches `${workspaceFolder}/bin/agent-memory-mcp`. The launcher reads the local
-   `.env` and uses the existing `venv`; no credentials are stored in the committed MCP configuration. Its first
-   start can initialize the SDK's schema and indexes in your Aura database.
-4. For **`nams`**, complete the browser OAuth sign-in and select the intended workspace when prompted. The hosted
-   service manages extraction; it does not use the local Aura launcher.
-5. In Copilot Chat, choose an agent session that supports tools and enable the selected server in the tools picker.
-   Use one backend at a time when comparing results. On versions offering multiple harnesses, use the **Local**
-   harness for this VS Code configuration. Other harnesses have their own configuration destinations, as described
-   in the official guide.
-
-For a read-only connection check, ask Copilot:
-
-```text
-Use only the agent-memory MCP tools to find who owns fraud-api, who their manager is,
-and when the release freeze starts. Report conflicting claims or missing information.
-Do not read repository files, run shell commands, or write new memory.
-```
-
-For NAMS, replace `agent-memory` with `nams`. Expand the tool call to verify the intended MCP server actually
-returned the evidence. On this shared demo database, leave `graph_query` disabled so it cannot read evaluation
-reference answers.
-
-**MCP access is not automatic session capture.** Copilot can recall existing memory and explicitly store messages
-through the server's tools. This configuration does not install Copilot capture hooks or reuse Claude Code's
-`nams-hooks` plugin. The evaluation above covers Claude Code and Haystack, **not Copilot**.
+Presenting the demo? Use [the live-demo runbook](docs/live-demo.md) for the pitch script and links.
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| [.vscode/mcp.json](.vscode/mcp.json) | GitHub Copilot / VS Code MCP connections for Aura and NAMS |
+| [.mcp.json](.mcp.json) | Portable MCP connections for Claude Code and native Copilot workspace discovery |
+| [.vscode/mcp.json](.vscode/mcp.json) | VS Code-format MCP connections for Aura and NAMS |
+| [.agents/mcp_config.json](.agents/mcp_config.json), [.agents/hooks.json](.agents/hooks.json) | Local-preview Antigravity MCP definitions and capture/recall hook events |
 | [bin/agent-memory-mcp](bin/agent-memory-mcp) | starts the SDK's MCP server on Aura (`neo4j-agent-memory mcp serve --backend bolt`) |
-| [bin/agent-memory-hook](bin/agent-memory-hook) | Claude Code hook: captures sessions into Aura through the SDK, injects recall (daemon: `harness/aura_hooks_daemon.py`, importer: `harness/import_transcripts.py`) |
+| [bin/nams-mcp](bin/nams-mcp) | Local-preview NAMS stdio proxy using `NAMS_API_KEY` from `.env` |
+| [bin/agent-memory-hook](bin/agent-memory-hook) | Claude Code capture/recall hook; local changes add Antigravity payloads and Aura/NAMS backend selection (daemon: `harness/aura_hooks_daemon.py`) |
 | [ontology/](ontology/) | the shared ontology (NAMS "Agent Memory" template + software team) |
-| [harness/](harness/) | Claude Code flags per backend, the SDK as a Haystack tool, the hook daemon, the transcript importer, the LLM factory |
+| [harness/](harness/) | Claude Code runner, local Antigravity protocol adapter, the SDK as a Haystack tool, the hook daemon, transcript importer and LLM factory |
 | [demo/](demo/) | story, session runner, smoke test (`check_setup.py`), NAMS MCP config, transcripts |
 | [eval/](eval/) | questions, Haystack eval, results |
 | [dashboard/](dashboard/) | dashboard queries, generator, import JSON |
