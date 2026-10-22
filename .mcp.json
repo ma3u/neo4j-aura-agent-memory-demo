@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "agent-memory": {
+      "type": "stdio",
+      "command": "bin/agent-memory-mcp",
+      "args": []
+    },
+    "nams": {
+      "type": "http",
+      "url": "https://memory.neo4jlabs.com/mcp"
+    }
+  }
+}

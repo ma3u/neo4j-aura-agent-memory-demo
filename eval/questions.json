@@ -1,0 +1,12 @@
+[
+  {"id": "s1", "type": "single-hop", "question": "Which web framework does checkout-service use?", "answer": "FastAPI"},
+  {"id": "s2", "type": "single-hop", "question": "Which AWS region does checkout-service deploy to?", "answer": "eu-central-1"},
+  {"id": "s3", "type": "single-hop", "question": "When does the release freeze start?", "answer": "30 October"},
+  {"id": "s4", "type": "single-hop", "question": "Where does checkout-service store its orders?", "answer": "In the Neo4j Aura instance orders-graph"},
+  {"id": "m1", "type": "multi-hop", "question": "Who owns the service that checkout-service uses for fraud scoring, and who is that person's manager?", "answer": "Lena owns fraud-api; her manager is Ines (CTO)"},
+  {"id": "m2", "type": "multi-hop", "question": "Why did the team choose Neo4j for checkout-service's orders?", "answer": "ADR-007: fraud rings (order -> customer -> device -> order) need multi-hop queries, so Neo4j was chosen over Postgres"},
+  {"id": "m3", "type": "multi-hop", "question": "Which team does Mara lead, and which company is it part of?", "answer": "The payments team at Kestrel Labs"},
+  {"id": "c1", "type": "correction", "question": "Does Jonas still own fraud-api?", "answer": "No. Lena owns fraud-api now."},
+  {"id": "n1", "type": "not-in-memory", "question": "Which Kubernetes namespace does checkout-service run in?", "answer": "Not in memory: the agent must say it does not know"},
+  {"id": "n2", "type": "not-in-memory", "question": "Which database does fraud-api use?", "answer": "Not in memory: the agent must say it does not know"}
+]

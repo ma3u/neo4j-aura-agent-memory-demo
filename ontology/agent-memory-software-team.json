@@ -1,0 +1,594 @@
+{
+  "domain": {
+    "id": "agent-memory-software-team",
+    "name": "Agent Memory + Software Team",
+    "description": "NAMS 'Agent Memory' template (agents, conversations, memories, tool calls on POLE) extended with the vocabulary of a software team: services, teams, decisions, ownership, reporting lines, dependencies.",
+    "tagline": "AI-powered Agent Intelligence",
+    "emoji": "\ud83e\udde0"
+  },
+  "entity_types": [
+    {
+      "label": "Event",
+      "pole_type": "EVENT",
+      "color": "#f97316",
+      "icon": "calendar",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "date",
+          "type": "datetime"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Location",
+      "pole_type": "LOCATION",
+      "color": "#a855f7",
+      "icon": "map-pin",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "address",
+          "type": "string"
+        },
+        {
+          "name": "latitude",
+          "type": "float"
+        },
+        {
+          "name": "longitude",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "label": "Object",
+      "pole_type": "OBJECT",
+      "color": "#eab308",
+      "icon": "box",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Organization",
+      "pole_type": "ORGANIZATION",
+      "color": "#3b82f6",
+      "icon": "building",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "industry",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Person",
+      "pole_type": "PERSON",
+      "color": "#22c55e",
+      "icon": "user",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Agent",
+      "pole_type": "OBJECT",
+      "subtype": "AI_AGENT",
+      "color": "#8b5cf6",
+      "icon": "bot",
+      "properties": [
+        {
+          "name": "agent_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "model",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        },
+        {
+          "name": "capabilities",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": [
+            "active",
+            "idle",
+            "suspended",
+            "retired"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Conversation",
+      "pole_type": "EVENT",
+      "subtype": "DIALOGUE",
+      "color": "#0ea5e9",
+      "icon": "messages-square",
+      "properties": [
+        {
+          "name": "conversation_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "topic",
+          "type": "string"
+        },
+        {
+          "name": "started_at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "name": "ended_at",
+          "type": "datetime"
+        },
+        {
+          "name": "message_count",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": [
+            "active",
+            "completed",
+            "abandoned",
+            "escalated"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Entity",
+      "pole_type": "OBJECT",
+      "subtype": "EXTRACTED_ENTITY",
+      "color": "#f59e0b",
+      "icon": "tag",
+      "properties": [
+        {
+          "name": "entity_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "entity_type",
+          "type": "string",
+          "enum": [
+            "person",
+            "place",
+            "concept",
+            "event",
+            "product",
+            "organization"
+          ]
+        },
+        {
+          "name": "confidence",
+          "type": "float"
+        },
+        {
+          "name": "source_text",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Memory",
+      "pole_type": "OBJECT",
+      "subtype": "AGENT_MEMORY",
+      "color": "#10b981",
+      "icon": "brain",
+      "properties": [
+        {
+          "name": "memory_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "content",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "memory_type",
+          "type": "string",
+          "enum": [
+            "episodic",
+            "semantic",
+            "procedural",
+            "working"
+          ]
+        },
+        {
+          "name": "importance",
+          "type": "float"
+        },
+        {
+          "name": "created_at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "name": "last_accessed",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "label": "ToolCall",
+      "pole_type": "EVENT",
+      "subtype": "TOOL_INVOCATION",
+      "color": "#ef4444",
+      "icon": "wrench",
+      "properties": [
+        {
+          "name": "call_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "tool_name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "input_params",
+          "type": "string"
+        },
+        {
+          "name": "output_summary",
+          "type": "string"
+        },
+        {
+          "name": "duration_ms",
+          "type": "integer"
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "enum": [
+            "success",
+            "failure",
+            "timeout",
+            "cancelled"
+          ]
+        },
+        {
+          "name": "called_at",
+          "type": "datetime",
+          "required": true
+        }
+      ]
+    },
+    {
+      "label": "Session",
+      "pole_type": "EVENT",
+      "subtype": "AGENT_SESSION",
+      "color": "#6366f1",
+      "icon": "layout-dashboard",
+      "properties": [
+        {
+          "name": "session_id",
+          "type": "string",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "started_at",
+          "type": "datetime",
+          "required": true
+        },
+        {
+          "name": "ended_at",
+          "type": "datetime"
+        },
+        {
+          "name": "goal",
+          "type": "string"
+        },
+        {
+          "name": "outcome",
+          "type": "string",
+          "enum": [
+            "achieved",
+            "partial",
+            "failed",
+            "ongoing"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Service",
+      "pole_type": "OBJECT",
+      "color": "#0ea5e9",
+      "icon": "server",
+      "description": "A software service, API or database, e.g. checkout-service, fraud-api, orders-graph",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "language",
+          "type": "string"
+        },
+        {
+          "name": "framework",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Team",
+      "pole_type": "ORGANIZATION",
+      "color": "#6366f1",
+      "icon": "users",
+      "description": "A team inside an organization, e.g. the payments team",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "label": "Decision",
+      "pole_type": "EVENT",
+      "color": "#f97316",
+      "icon": "gavel",
+      "description": "An architecture or product decision, e.g. ADR-007",
+      "properties": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "rationale",
+          "type": "string"
+        },
+        {
+          "name": "date",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "LOCATED_AT",
+      "source": "Organization",
+      "target": "Location"
+    },
+    {
+      "type": "PARTICIPATED_IN",
+      "source": "Person",
+      "target": "Event"
+    },
+    {
+      "type": "WORKS_FOR",
+      "source": "Person",
+      "target": "Organization"
+    },
+    {
+      "type": "REMEMBERED",
+      "source": "Agent",
+      "target": "Memory"
+    },
+    {
+      "type": "EXTRACTED",
+      "source": "Conversation",
+      "target": "Entity"
+    },
+    {
+      "type": "REASONED_ABOUT",
+      "source": "Agent",
+      "target": "Entity"
+    },
+    {
+      "type": "INVOKED",
+      "source": "Agent",
+      "target": "ToolCall"
+    },
+    {
+      "type": "PARTICIPATED_IN",
+      "source": "Agent",
+      "target": "Conversation"
+    },
+    {
+      "type": "REFERENCED",
+      "source": "Memory",
+      "target": "Entity"
+    },
+    {
+      "type": "PART_OF_SESSION",
+      "source": "Conversation",
+      "target": "Session"
+    },
+    {
+      "type": "TRIGGERED_BY",
+      "source": "ToolCall",
+      "target": "Conversation"
+    },
+    {
+      "type": "OWNS",
+      "source": "Person",
+      "target": "Service",
+      "description": "current owner of a service"
+    },
+    {
+      "type": "REPORTS_TO",
+      "source": "Person",
+      "target": "Person",
+      "description": "reporting line"
+    },
+    {
+      "type": "LEADS",
+      "source": "Person",
+      "target": "Team"
+    },
+    {
+      "type": "PART_OF",
+      "source": "Team",
+      "target": "Organization"
+    },
+    {
+      "type": "BUILDS",
+      "source": "Team",
+      "target": "Service"
+    },
+    {
+      "type": "CALLS",
+      "source": "Service",
+      "target": "Service",
+      "description": "runtime dependency"
+    },
+    {
+      "type": "STORES_DATA_IN",
+      "source": "Service",
+      "target": "Service"
+    },
+    {
+      "type": "DEPLOYS_TO",
+      "source": "Service",
+      "target": "Location"
+    },
+    {
+      "type": "DECIDED_FOR",
+      "source": "Decision",
+      "target": "Service"
+    },
+    {
+      "type": "AFFECTS",
+      "source": "Event",
+      "target": "Service",
+      "description": "e.g. a release freeze"
+    },
+    {
+      "type": "OWNS",
+      "source": "Person",
+      "target": "Object",
+      "description": "owner of a service stored as Object (POLE)"
+    },
+    {
+      "type": "LEADS",
+      "source": "Person",
+      "target": "Organization"
+    },
+    {
+      "type": "BUILDS",
+      "source": "Organization",
+      "target": "Object"
+    },
+    {
+      "type": "CALLS",
+      "source": "Object",
+      "target": "Object"
+    },
+    {
+      "type": "STORES_DATA_IN",
+      "source": "Object",
+      "target": "Object"
+    },
+    {
+      "type": "DEPLOYS_TO",
+      "source": "Object",
+      "target": "Location"
+    },
+    {
+      "type": "DECIDED_FOR",
+      "source": "Event",
+      "target": "Object"
+    },
+    {
+      "type": "AFFECTS",
+      "source": "Event",
+      "target": "Object"
+    }
+  ]
+}

@@ -1,0 +1,315 @@
+{
+  "variants": {
+    "no_memory": [
+      {
+        "id": "s1",
+        "answer": "I don't know \u2014 my long-term memory doesn't contain which web framework checkout-service uses.",
+        "correct": false,
+        "reason": "The assistant claimed it didn't know, but the reference answer states that checkout-service uses FastAPI."
+      },
+      {
+        "id": "s2",
+        "answer": "I don't know \u2014 my long-term memory doesn't contain the AWS region for checkout-service.",
+        "correct": false,
+        "reason": "Incorrect \u2014 the reference states the region is eu-central-1, but the assistant said it didn't know."
+      },
+      {
+        "id": "s3",
+        "answer": "I don't know \u2014 my memory doesn't contain the release-freeze start date.",
+        "correct": false,
+        "reason": "The assistant claimed not to know the release-freeze start date, but the reference answer specifies it is 30 October."
+      },
+      {
+        "id": "s4",
+        "answer": "I don't know \u2014 my memory doesn't contain where checkout-service stores its orders.",
+        "correct": false,
+        "reason": "The reference says orders are stored in the Neo4j Aura instance orders-graph, but the assistant claimed it didn't know."
+      },
+      {
+        "id": "m1",
+        "answer": "I don't know \u2014 my project memory doesn't contain that information.",
+        "correct": false,
+        "reason": "The assistant incorrectly said the info wasn't in memory, but the reference states Lena owns fraud-api and her manager is Ines (CTO)."
+      },
+      {
+        "id": "m2",
+        "answer": "I don't know \u2014 my memory doesn't contain why the team chose Neo4j for checkout-service's orders.",
+        "correct": false,
+        "reason": "Incorrect \u2014 the reference states ADR-007 chose Neo4j to support multi\u2011hop fraud\u2011ring queries (order\u2192customer\u2192device\u2192order) instead of Postgres, but the assistant claimed no memory."
+      },
+      {
+        "id": "m3",
+        "answer": "I don't know.",
+        "correct": false,
+        "reason": "Incorrect \u2014 the reference states Mara leads the payments team at Kestrel Labs, so answering 'I don't know' is wrong."
+      },
+      {
+        "id": "c1",
+        "answer": "I don't know \u2014 my memory doesn't contain that information.",
+        "correct": false,
+        "reason": "The assistant said it didn't know, but the reference states Jonas no longer owns fraud-api and Lena does."
+      },
+      {
+        "id": "n1",
+        "answer": "I don't know \u2014 my memory doesn't contain which namespace checkout-service runs in.",
+        "correct": true,
+        "reason": "The assistant explicitly stated it does not know and that its memory does not contain the namespace information."
+      },
+      {
+        "id": "n2",
+        "answer": "I don't know \u2014 my project memory doesn't include which database fraud-api uses.",
+        "correct": true,
+        "reason": "The assistant explicitly stated it does not know and that its project memory lacks that information."
+      }
+    ],
+    "haystack_aura": [
+      {
+        "id": "s1",
+        "answer": "FastAPI.",
+        "correct": true,
+        "reason": "The assistant's answer matches the reference exactly: FastAPI."
+      },
+      {
+        "id": "s2",
+        "answer": "AWS eu-central-1.",
+        "correct": true,
+        "reason": "The assistant named the same AWS region eu-central-1 as the reference."
+      },
+      {
+        "id": "s3",
+        "answer": "It starts on 30 October.",
+        "correct": true,
+        "reason": "The assistant's answer matches the reference date exactly."
+      },
+      {
+        "id": "s4",
+        "answer": "In the orders-graph Neo4j Aura instance.",
+        "correct": true,
+        "reason": "The assistant states the same fact: orders are stored in the orders-graph Neo4j Aura instance."
+      },
+      {
+        "id": "m1",
+        "answer": "The fraud-scoring service (fraud-api) is owned by Lena, and Lena reports to Ines (the CTO).",
+        "correct": true,
+        "reason": "The assistant correctly states that Lena owns fraud-api and that her manager is Ines (CTO)."
+      },
+      {
+        "id": "m2",
+        "answer": "Per ADR-007: Neo4j was chosen over Postgres because detecting fraud rings (multi\u2011hop relationships like order \u2192 customer \u2192 device \u2192 order) requires efficient multi\u2011hop graph queries.",
+        "correct": true,
+        "reason": "Matches ADR-007: Neo4j was chosen over Postgres to support efficient multi-hop graph queries for detecting fraud rings (order \u2192 customer \u2192 device \u2192 order)."
+      },
+      {
+        "id": "m3",
+        "answer": "Mara leads the payments team, which is part of Kestrel Labs.",
+        "correct": true,
+        "reason": "The assistant's answer matches the reference exactly: Mara leads the payments team at Kestrel Labs."
+      },
+      {
+        "id": "c1",
+        "answer": "No. Lena owns fraud-api \u2014 ownership changed the week of 2026-10-22.",
+        "correct": true,
+        "reason": "The assistant stated that Jonas no longer owns fraud-api and that Lena owns it, matching the reference (with an additional date detail)."
+      },
+      {
+        "id": "n1",
+        "answer": "I don't know \u2014 my project memory doesn't include which Kubernetes namespace checkout-service runs in.",
+        "correct": true,
+        "reason": "The assistant explicitly states it does not know and that its project memory lacks the namespace information, matching the reference requirement."
+      },
+      {
+        "id": "n2",
+        "answer": "I don't know \u2014 my project memory doesn't say which database fraud-api uses.",
+        "correct": true,
+        "reason": "The assistant explicitly stated it does not know and that its project memory lacks that fact, matching the reference requirement."
+      }
+    ],
+    "claude_code_aura": [
+      {
+        "id": "s1",
+        "answer": "checkout-service uses **FastAPI**. It's a Python 3.12 service, according to Mara's briefing in my memory.",
+        "correct": true,
+        "reason": "The assistant correctly identifies FastAPI as the web framework (the extra Python 3.12 detail is acceptable)."
+      },
+      {
+        "id": "s2",
+        "answer": "checkout-service deploys to AWS **eu-central-1**, through GitHub Actions. My memory has this from Mara's briefing.",
+        "correct": true,
+        "reason": "The assistant correctly identifies eu-central-1 as the deployment region."
+      },
+      {
+        "id": "s3",
+        "answer": "The release freeze starts on **30 October**. That comes from Mara's briefing on the payments team at Kestrel Labs, which is stored in memory.",
+        "correct": true,
+        "reason": "The assistant correctly states the release freeze starts on 30 October, matching the reference."
+      },
+      {
+        "id": "s4",
+        "answer": "checkout-service stores its orders in the Neo4j Aura instance **orders-graph**. ADR-007 chose Neo4j over Postgres for this, because fraud-ring detection (order \u2192 customer \u2192 device \u2192 order) needs multi-hop queries.",
+        "correct": true,
+        "reason": "Matches the reference: it states orders are stored in the Neo4j Aura instance orders-graph (extra rationale is acceptable)."
+      },
+      {
+        "id": "m1",
+        "answer": "Lena owns fraud-api, the fraud scoring service that checkout-service calls. Her manager is Ines, the CTO.\n\nJonas owned fraud-api until the ownership change that Mara reported for the week of 2026-10-22. The original briefing said Jonas owned it and that Jonas and Lena both report to Ines. I used the updated entity note for the owner.",
+        "correct": true,
+        "reason": "The assistant states Lena owns fraud-api and her manager is Ines (CTO), matching the reference answer; the extra historical note does not contradict it."
+      },
+      {
+        "id": "m2",
+        "answer": "They chose Neo4j over Postgres (ADR-007) because fraud-ring detection (order \u2192 customer \u2192 device \u2192 order) needs multi-hop queries, which suit a graph database.",
+        "correct": true,
+        "reason": "The assistant correctly states ADR-007: Neo4j was chosen over Postgres for multi-hop fraud-ring detection (order \u2192 customer \u2192 device \u2192 order)."
+      },
+      {
+        "id": "m3",
+        "answer": "Mara leads the **payments team**, which is part of **Kestrel Labs**.",
+        "correct": true,
+        "reason": "The assistant states she leads the payments team at Kestrel Labs, which matches the reference exactly."
+      },
+      {
+        "id": "c1",
+        "answer": "No. According to my memory, fraud-api is now owned by Lena. Jonas owned it before, and Mara said the ownership changed the week of 2026-10-22.",
+        "correct": true,
+        "reason": "The assistant correctly states that Jonas no longer owns fraud-api and that Lena currently owns it, matching the reference (extra correct details are acceptable)."
+      },
+      {
+        "id": "n1",
+        "answer": "I don't know. My memory has several facts about checkout-service. It's a Python 3.12/FastAPI service. It stores orders in the Neo4j Aura instance `orders-graph`. It deploys to AWS eu-central-1 through GitHub Actions. None of that says which Kubernetes namespace it runs in.",
+        "correct": true,
+        "reason": "The assistant explicitly says it does not know the namespace and does not provide any concrete namespace value."
+      },
+      {
+        "id": "n2",
+        "answer": "I don't know. My memory has nothing on which database fraud-api uses.\n\nIt does say fraud-api is the fraud scoring service that checkout-service calls, and that Lena owns it. The Neo4j Aura instance orders-graph belongs to checkout-service, which stores its orders there, not to fraud-api.",
+        "correct": true,
+        "reason": "The assistant correctly stated it does not know which database fraud-api uses and the extra context given is accurate."
+      }
+    ],
+    "haystack_nams": [
+      {
+        "id": "s1",
+        "answer": "checkout-service uses FastAPI.",
+        "correct": true,
+        "reason": "Assistant's answer matches the reference: both state that checkout-service uses FastAPI."
+      },
+      {
+        "id": "s2",
+        "answer": "AWS eu-central-1.",
+        "correct": true,
+        "reason": "The assistant's answer specifies the same region, eu-central-1, as the reference."
+      },
+      {
+        "id": "s3",
+        "answer": "The release freeze starts on 30 October.",
+        "correct": true,
+        "reason": "The assistant's answer matches the reference date of 30 October."
+      },
+      {
+        "id": "s4",
+        "answer": "In the Neo4j Aura instance named \"orders-graph.\"",
+        "correct": true,
+        "reason": "Both answers state orders are stored in the Neo4j Aura instance named \"orders-graph.\""
+      },
+      {
+        "id": "m1",
+        "answer": "The fraud-scoring service (fraud-api) is owned by Jonas, and Jonas reports to Ines.",
+        "correct": false,
+        "reason": "The assistant named Jonas as the owner but the reference says Lena owns the fraud-api (manager Ines is correct)."
+      },
+      {
+        "id": "m2",
+        "answer": "They chose Neo4j because the fraud\u2011ring queries for orders require efficient multi\u2011hop graph traversals, so a graph DB (Neo4j Aura) fit the use case.",
+        "correct": true,
+        "reason": "It matches: the team picked Neo4j because fraud\u2011ring detection requires efficient multi\u2011hop graph traversals, so a graph DB (Neo4j) was appropriate."
+      },
+      {
+        "id": "m3",
+        "answer": "Mara leads the payments team, which is part of Kestrel Labs.",
+        "correct": true,
+        "reason": "The assistant's answer matches the reference exactly: Mara leads the payments team at Kestrel Labs."
+      },
+      {
+        "id": "c1",
+        "answer": "Yes \u2014 your memory shows Jonas owns fraud-api.",
+        "correct": false,
+        "reason": "The assistant's answer contradicts the reference: it claims Jonas owns fraud-api while the reference states Lena owns it now."
+      },
+      {
+        "id": "n1",
+        "answer": "I don't know \u2014 my memory doesn't include the Kubernetes namespace for checkout-service.",
+        "correct": true,
+        "reason": "The assistant explicitly stated it does not know and that its memory lacks the Kubernetes namespace for checkout-service, matching the reference requirement."
+      },
+      {
+        "id": "n2",
+        "answer": "I don't know \u2014 my project memory doesn't say which database fraud-api uses.",
+        "correct": true,
+        "reason": "The assistant explicitly states it does not know and that its project memory lacks the information about which database fraud-api uses."
+      }
+    ],
+    "claude_code_nams": [
+      {
+        "id": "s1",
+        "answer": "checkout-service uses **FastAPI**. It's a Python 3.12 service.",
+        "correct": true,
+        "reason": "The assistant correctly states the framework is FastAPI (extra detail about Python 3.12 is acceptable)."
+      },
+      {
+        "id": "s2",
+        "answer": "checkout-service deploys to **AWS eu-central-1**, according to my memory. The deploy runs through GitHub Actions.",
+        "correct": true,
+        "reason": "The assistant correctly states the service deploys to eu-central-1 (extra GitHub Actions detail is acceptable)."
+      },
+      {
+        "id": "s3",
+        "answer": "The release freeze starts on **30 October**. That's 8 days from today, 22 October. My long-term memory has this from your project briefing.",
+        "correct": true,
+        "reason": "The assistant states the release freeze starts on 30 October, which matches the reference exactly."
+      },
+      {
+        "id": "s4",
+        "answer": "checkout-service stores its orders in **orders-graph**, a Neo4j Aura instance. My memory also says Postgres was considered as an alternative, but Neo4j is what it uses.",
+        "correct": true,
+        "reason": "The assistant correctly states orders are stored in the Neo4j Aura instance orders-graph, matching the reference."
+      },
+      {
+        "id": "m1",
+        "answer": "Based on my memory, checkout-service uses **fraud-api** for fraud scoring. **Jonas** owns it, and Jonas reports to **Ines**, so Ines is Jonas's manager.",
+        "correct": false,
+        "reason": "Incorrect \u2014 the assistant misidentified the owner (should be Lena) though it correctly named Ines as the manager."
+      },
+      {
+        "id": "m2",
+        "answer": "They chose Neo4j over Postgres (ADR-007) because the fraud-ring analysis needs multi-hop queries. A fraud ring follows the path order \u2192 customer \u2192 device \u2192 order, and a graph database handles that traversal natively.\n\nThis comes from the NAMS memory graph.",
+        "correct": true,
+        "reason": "Matches ADR-007: Neo4j was chosen over Postgres because fraud-ring detection requires multi-hop queries (order\u2192customer\u2192device\u2192order)."
+      },
+      {
+        "id": "m3",
+        "answer": "Mara leads the **payments team**, which is part of **Kestrel Labs**. The payments team builds checkout-service.",
+        "correct": true,
+        "reason": "The assistant states Mara leads the payments team at Kestrel Labs, matching the reference (extra detail about checkout-service is acceptable)."
+      },
+      {
+        "id": "c1",
+        "answer": "Yes. According to my memory, Jonas owns fraud-api. It's the fraud-scoring service that checkout-service calls. Jonas reports to Ines, the CTO.\n\nI found no record of the ownership changing. The entries don't carry dates for the ownership itself, so I can't confirm it's current as of today.",
+        "correct": false,
+        "reason": "The assistant incorrectly states Jonas owns fraud-api, but the reference says Lena owns it now."
+      },
+      {
+        "id": "n1",
+        "answer": "I don't know. My memory has no Kubernetes namespace for checkout-service. It only records that the service is a Python 3.12/FastAPI app. It stores orders in the Neo4j Aura instance `orders-graph`, calls fraud-api, and deploys to AWS eu-central-1 via GitHub Actions.",
+        "correct": true,
+        "reason": "The assistant correctly stated it does not know the Kubernetes namespace and that the memory contains no such fact, which matches the reference requirement."
+      },
+      {
+        "id": "n2",
+        "answer": "I don't know. My memory says fraud-api is a fraud scoring service that checkout-service calls, and that Jonas owns it. It doesn't say which database fraud-api uses.\n\nMemory does record that Neo4j was chosen for *orders*, because the fraud-ring queries need multi-hop traversal. Nothing links that choice to fraud-api.",
+        "correct": true,
+        "reason": "The assistant correctly states it does not know which database fraud-api uses and only repeats unrelated memory facts without naming a database."
+      }
+    ]
+  },
+  "run_at": "2026-10-22T12:54:48Z"
+}

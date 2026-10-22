@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Neo4j Labs Agent Memory MCP server (neo4j-agent-memory) on your Neo4j Aura instance, over stdio.
+# Loads .env, maps Azure OpenAI to LiteLLM's variable names, then starts:
+#   neo4j-agent-memory mcp serve --backend bolt
+# LLM (entity/relation extraction, reflections): azure/<AZURE_OPENAI_DEPLOYMENT> via LiteLLM, or OPENAI_MODEL.
+# Ontology: ontology/agent-memory-software-team.json (shared with the NAMS workspace).
+# Embeddings: BAAI/bge-small-en-v1.5 (local sentence-transformers, no key needed). Override with AGENT_MEMORY_EMBEDDING.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+set -a; [ -f .env ] && . ./.env; set +a
+
+if [ -n "${AZURE_OPENAI_ENDPOINT:-}" ]; then
+  export AZURE_API_KEY="$AZURE_OPENAI_API_KEY" AZURE_API_BASE="$AZURE_OPENAI_ENDPOINT" AZURE_API_VERSION="${AZURE_OPENAI_API_VERSION:-2025-01-01-preview}"
+  LLM="azure/${AZURE_OPENAI_DEPLOYMENT:-gpt-5-mini}"
+else
+  LLM="openai/${OPENAI_MODEL:-gpt-5-mini}"
+fi
+export NAM_EXTRACTION__EXTRACTOR_TYPE="${NAM_EXTRACTION__EXTRACTOR_TYPE:-llm}"
+# One ontology for both backends: NAMS "Agent Memory" template + software-team vocabulary (ontology/README.md)
+export NAM_SCHEMA_CONFIG__ONTOLOGY_PATH="${NAM_SCHEMA_CONFIG__ONTOLOGY_PATH:-$PWD/ontology/agent-memory-software-team.json}"
+# gpt-5-mini rejects temperature=0.0, which the SDK sends; let LiteLLM drop parameters a model does not support
+export LITELLM_DROP_PARAMS="${LITELLM_DROP_PARAMS:-true}"
+
+exec venv/bin/neo4j-agent-memory mcp serve --backend bolt \
+  --uri "$NEO4J_URI" --user "$NEO4J_USERNAME" --password "$NEO4J_PASSWORD" \
+  --llm "$LLM" --embedding "${AGENT_MEMORY_EMBEDDING:-BAAI/bge-small-en-v1.5}" \
+  --profile "${AGENT_MEMORY_PROFILE:-extended}" "$@"

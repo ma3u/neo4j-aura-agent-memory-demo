@@ -1,0 +1,20 @@
+{
+  "about": "Fictional team, so no model can answer from pre-training. Each session is a separate headless Claude Code process: nothing carries over except the memory backend (neo4j-agent-memory on Aura, or NAMS). Prompts are backend-neutral: they never name a tool.",
+  "sessions": [
+    {
+      "id": "day-1",
+      "title": "Day 1: project briefing",
+      "prompt": "Hi, I'm Mara. Here is the briefing for my project. Keep these facts in your long-term memory for future sessions, then confirm in one sentence.\n\n- I lead the payments team at Kestrel Labs.\n- We build checkout-service in Python 3.12 with FastAPI.\n- checkout-service stores orders in the Neo4j Aura instance orders-graph.\n- checkout-service calls fraud-api for fraud scoring. fraud-api is owned by Jonas.\n- Jonas and Lena both report to Ines, our CTO.\n- checkout-service deploys to AWS eu-central-1 via GitHub Actions.\n- Decision ADR-007: we chose Neo4j over Postgres for orders because fraud rings (order -> customer -> device -> order) need multi-hop queries.\n- The release freeze starts on 30 October."
+    },
+    {
+      "id": "day-2",
+      "title": "Day 2: a correction",
+      "prompt": "Update from Mara: since this week fraud-api is owned by Lena, not Jonas. Please update your long-term memory and confirm in one sentence."
+    },
+    {
+      "id": "day-3",
+      "title": "Day 3: a question that needs the graph",
+      "prompt": "I'm about to change how checkout-service calls fraud scoring. Using only your long-term memory: who do I need to talk to, who is their manager, and is there a deadline I should know about?"
+    }
+  ]
+}

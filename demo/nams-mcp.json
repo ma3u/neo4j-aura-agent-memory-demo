@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "nams": {
+      "type": "http",
+      "url": "https://memory.neo4jlabs.com/mcp",
+      "headers": {"Authorization": "Bearer ${NAMS_API_KEY}"}
+    }
+  }
+}

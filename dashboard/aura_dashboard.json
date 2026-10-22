@@ -1,0 +1,224 @@
+{
+  "uuid": "d3571c0d-ad2b-573a-aba6-1c36651cf44a",
+  "title": "Agent Memory on Neo4j Aura",
+  "version": "2.4",
+  "settings": {
+    "pagenumber": 0,
+    "editable": true,
+    "fullscreenEnabled": true,
+    "parameters": {}
+  },
+  "pages": [
+    {
+      "title": "Memory (neo4j-agent-memory)",
+      "reports": [
+        {
+          "id": "memory-neo-j-agent-memory-intro",
+          "title": "Agent memory on Neo4j Aura",
+          "query": "**Claude Code with long-term memory in Neo4j Aura**, through the Neo4j Labs SDK\n[neo4j-agent-memory](https://neo4j.com/labs/agent-memory/) and its MCP server (Bolt backend). Three separate Claude Code\nsessions (briefing, correction, question) share nothing but this graph; extraction follows the shared ontology\n\"Agent Memory + Software Team\". Haystack evaluates it against NAMS (memory.neo4jlabs.com) on 10 questions.\nCode: [github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)",
+          "x": 0,
+          "y": 0,
+          "width": 24,
+          "height": 2,
+          "type": "text",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a1",
+          "title": "Entities",
+          "query": "MATCH (e:Entity) RETURN count(e) AS Entities",
+          "x": 0,
+          "y": 2,
+          "width": 8,
+          "height": 2,
+          "type": "value",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a2",
+          "title": "Relationships",
+          "query": "MATCH (:Entity)-[r:RELATED_TO]->(:Entity) RETURN count(r) AS Relationships",
+          "x": 8,
+          "y": 2,
+          "width": 8,
+          "height": 2,
+          "type": "value",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a3",
+          "title": "Facts",
+          "query": "MATCH (f:Fact) RETURN count(f) AS Facts",
+          "x": 16,
+          "y": 2,
+          "width": 8,
+          "height": 2,
+          "type": "value",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a4",
+          "title": "What Claude Code remembers (conversation, messages, entities)",
+          "query": "MATCH p = (:Conversation)-[:HAS_MESSAGE]->(:Message)-[:MENTIONS]->(:Entity) RETURN p\nUNION\nMATCH p = (:Entity)-[:RELATED_TO]->(:Entity) RETURN p",
+          "x": 0,
+          "y": 4,
+          "width": 14,
+          "height": 6,
+          "type": "graph",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a5",
+          "title": "Day 3: checkout-service -> fraud-api -> owner -> manager",
+          "query": "MATCH p = (:Entity {name: 'checkout-service'})-[:RELATED_TO*1..3]-(:Entity {name: 'Ines'})\nWHERE all(r IN relationships(p) WHERE r.type IN ['CALLS', 'OWNS', 'REPORTS_TO'])\nRETURN p",
+          "x": 14,
+          "y": 4,
+          "width": 10,
+          "height": 6,
+          "type": "graph",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a6",
+          "title": "The correction: who owns fraud-api?",
+          "query": "MATCH (p:Entity)-[r:RELATED_TO {type: 'OWNS'}]->(:Entity {name: 'fraud-api'})\nRETURN p.name AS owner, coalesce(r.extractor, 'agent via MCP') AS written_by, left(toString(r.created_at), 19) AS created,\n       coalesce(toString(r.valid_until), 'live') AS valid_until, r.description AS note\nORDER BY created",
+          "x": 0,
+          "y": 10,
+          "width": 24,
+          "height": 3,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a7",
+          "title": "Relationships: ontology extraction vs agent",
+          "query": "MATCH (a:Entity)-[r:RELATED_TO]->(b:Entity)\nRETURN a.name AS subject, r.type AS relation, b.name AS object,\n       coalesce(r.extractor, 'agent via MCP') AS written_by, r.confidence AS confidence\nORDER BY written_by, relation",
+          "x": 0,
+          "y": 13,
+          "width": 14,
+          "height": 6,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "memory-neo-j-agent-memory-a8",
+          "title": "Facts",
+          "query": "MATCH (f:Fact)\nRETURN f.subject AS subject, f.predicate AS predicate, f.object AS object, toString(f.valid_from) AS valid_from\nORDER BY subject",
+          "x": 14,
+          "y": 13,
+          "width": 10,
+          "height": 6,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "title": "Ontology",
+      "reports": [
+        {
+          "id": "ontology-o1",
+          "title": "Entities per type",
+          "query": "MATCH (e:Entity) UNWIND [l IN labels(e) WHERE l <> 'Entity'] AS label\nRETURN label, count(*) AS entities ORDER BY entities DESC",
+          "x": 0,
+          "y": 0,
+          "width": 10,
+          "height": 4,
+          "type": "bar",
+          "selection": {
+            "index": "label",
+            "value": "entities",
+            "key": "(none)"
+          },
+          "settings": {}
+        },
+        {
+          "id": "ontology-o2",
+          "title": "Relationship types: extracted vs agent",
+          "query": "MATCH (:Entity)-[r:RELATED_TO]->(:Entity)\nRETURN r.type AS relation, sum(CASE WHEN r.extractor IS NOT NULL THEN 1 ELSE 0 END) AS extracted,\n       sum(CASE WHEN r.extractor IS NULL THEN 1 ELSE 0 END) AS agent\nORDER BY extracted + agent DESC",
+          "x": 10,
+          "y": 0,
+          "width": 14,
+          "height": 4,
+          "type": "bar",
+          "selection": {
+            "index": "relation",
+            "value": "extracted",
+            "key": "(none)"
+          },
+          "settings": {}
+        },
+        {
+          "id": "ontology-o3",
+          "title": "Evidence behind extracted relationships",
+          "query": "MATCH (a:Entity)-[r:RELATED_TO]->(b:Entity) WHERE r.extractor IS NOT NULL\nRETURN a.name + ' -' + r.type + '-> ' + b.name AS relationship, r.confidence AS confidence,\n       left(coalesce(r.evidence[0], ''), 160) AS evidence\nORDER BY confidence DESC",
+          "x": 0,
+          "y": 4,
+          "width": 24,
+          "height": 6,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "title": "Eval (Haystack)",
+      "reports": [
+        {
+          "id": "eval-haystack-e1",
+          "title": "Accuracy per variant (%)",
+          "query": "MATCH (v:DemoEvalVariant)-[a:ANSWERED]->()\nRETURN v.name AS variant, toInteger(round(100.0 * sum(CASE WHEN a.correct THEN 1 ELSE 0 END) / count(a))) AS accuracy\nORDER BY accuracy",
+          "x": 0,
+          "y": 0,
+          "width": 10,
+          "height": 4,
+          "type": "bar",
+          "selection": {
+            "index": "variant",
+            "value": "accuracy",
+            "key": "(none)"
+          },
+          "settings": {}
+        },
+        {
+          "id": "eval-haystack-e2",
+          "title": "Accuracy per question type (%)",
+          "query": "MATCH (v:DemoEvalVariant)-[a:ANSWERED]->(q:DemoEvalQuestion)\nWITH v.name AS variant, q.type AS type, toInteger(round(100.0 * sum(CASE WHEN a.correct THEN 1 ELSE 0 END) / count(a))) AS acc\nWITH variant, apoc.map.fromPairs(collect([type, acc])) AS m\nRETURN variant, m['single-hop'] AS `single-hop`, m['multi-hop'] AS `multi-hop`, m['correction'] AS correction, m['not-in-memory'] AS `not-in-memory`\nORDER BY variant",
+          "x": 10,
+          "y": 0,
+          "width": 14,
+          "height": 4,
+          "type": "bar",
+          "selection": {
+            "index": "variant",
+            "value": "multi-hop",
+            "key": "(none)"
+          },
+          "settings": {}
+        },
+        {
+          "id": "eval-haystack-e3",
+          "title": "Every answer with the judge's reason",
+          "query": "MATCH (v:DemoEvalVariant)-[a:ANSWERED]->(q:DemoEvalQuestion)\nRETURN q.id AS id, q.type AS type, q.question AS question, v.name AS variant,\n       CASE WHEN a.correct THEN 'correct' ELSE 'wrong' END AS verdict, left(a.answer, 220) AS answer, a.reason AS judge\nORDER BY id, variant",
+          "x": 0,
+          "y": 4,
+          "width": 24,
+          "height": 7,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        }
+      ]
+    }
+  ]
+}

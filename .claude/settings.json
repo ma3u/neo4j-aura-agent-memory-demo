@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "nams-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "neo4j-labs/nams-plugins",
+        "ref": "latest"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "nams-hooks@nams-plugins": true
+  }
+}
