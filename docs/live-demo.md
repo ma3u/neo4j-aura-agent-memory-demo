@@ -7,6 +7,7 @@ project, the NAMS links for the workspace owner.
 
 | Check | How |
 |---|---|
+| Everything at once (read-only, ~1 min) | `venv/bin/python demo/check_setup.py` → `15/15 checks passed` |
 | Aura instance running | [Aura console → Instances](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/instances): `GraphRAG-agent-memory` **RUNNING** |
 | NAMS workspace alive (free DBs are removed after 2 days idle) | [NAMS dashboard](https://memory.neo4jlabs.com/dashboard), workspace `hacknight-demo` |
 | Claude Code sees both servers | `claude` in the repo → `/mcp`: `agent-memory` connected (16 tools), `nams` connected (47 tools; authenticate once) |

@@ -136,6 +136,8 @@ venv/bin/python eval/eval_memory.py                    # Haystack eval, results 
 venv/bin/python dashboard/build_dashboard.py           # -> dashboard/aura_dashboard.json
 ```
 
+Check both setups (read-only, nothing is written): `venv/bin/python demo/check_setup.py`.
+
 Interactive: open Claude Code in this folder, approve `agent-memory` and `nams` from `.mcp.json`, authenticate `nams`
 via `/mcp`, and tell it something worth remembering.
 
@@ -146,7 +148,7 @@ via `/mcp`, and tell it something worth remembering.
 | [bin/agent-memory-mcp](bin/agent-memory-mcp) | starts the SDK's MCP server on Aura (`neo4j-agent-memory mcp serve --backend bolt`) |
 | [ontology/](ontology/) | the shared ontology (NAMS "Agent Memory" template + software team) |
 | [harness/](harness/) | Claude Code flags per backend, the SDK as a Haystack tool, the LLM factory |
-| [demo/](demo/) | story, session runner, NAMS MCP config, transcripts |
+| [demo/](demo/) | story, session runner, smoke test (`check_setup.py`), NAMS MCP config, transcripts |
 | [eval/](eval/) | questions, Haystack eval, results |
 | [dashboard/](dashboard/) | dashboard queries, generator, import JSON |
 | [docs/](docs/) | setup guides, live demo runbook, comparison, screenshots |
