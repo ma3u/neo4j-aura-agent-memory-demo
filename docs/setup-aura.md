@@ -9,7 +9,7 @@ ontology in [ontology/](../ontology/). About 15 minutes.
 | [neo4j.com/labs/agent-memory](https://neo4j.com/labs/agent-memory/) | SDK docs (memory types, MCP tools, ontology-driven extraction) |
 | [github.com/neo4j-labs/agent-memory](https://github.com/neo4j-labs/agent-memory) | SDK source |
 | [console.neo4j.io](https://console.neo4j.io) | Aura console (instances, Query, Dashboards) |
-| [Live dashboard](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/5liMFJOPMbPfXN4fxBwy) | "Agent Memory on Neo4j Aura" (project members only) |
+| [Live dashboard](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/yCfaWsVBltViYPw7jRcS) | "Agent Memory on Neo4j Aura" (project members only) |
 
 ## Step 1: an Aura instance
 
@@ -67,7 +67,34 @@ _(Rendered from the headless run's transcript, [demo/transcripts/aura/day-3.md](
 
 Elsewhere (any folder): `claude mcp add agent-memory -s user -- /path/to/repo/bin/agent-memory-mcp`.
 
-## Step 6: talk to it, then look at Aura
+## Step 6: capture every Claude Code session (hooks)
+
+The SDK's MCP server only stores what the agent explicitly sends. To keep the **whole session** in Aura (every
+prompt, answer and tool call), like `nams-hooks` does for NAMS, this repo adds
+[bin/agent-memory-hook](../bin/agent-memory-hook), wired in [.claude/settings.json](../.claude/settings.json) for
+`SessionStart`, `UserPromptSubmit`, `PostToolUse` and `Stop`:
+
+| Claude Code event | Stored in Aura (neo4j-agent-memory) |
+|---|---|
+| prompt | `Message {role: user}` in the session's `Conversation` (entity extraction on) + a `ReasoningTrace` `-INITIATED_BY->` it |
+| tool call | `ReasoningStep {action}` `-USES_TOOL->` `ToolCall {arguments, result}` `-INSTANCE_OF->` `Tool` |
+| final answer | `Message {role: assistant}`, trace completed with the answer as `outcome` |
+| next prompt | relevant entities, facts and earlier messages are injected as `additionalContext` (recall) |
+
+The hook is a stdlib-only client; a local daemon ([harness/aura_hooks_daemon.py](../harness/aura_hooks_daemon.py),
+started on demand, stops after 30 min idle) keeps one SDK client and the embedding model loaded: about 2 s per prompt
+for recall, writes run in the background. Off with `AGENT_MEMORY_HOOKS=0`.
+
+Sessions recorded before the hooks existed can be imported from Claude Code's transcripts with the same code:
+
+```bash
+venv/bin/python harness/import_transcripts.py --story          # the latest Aura run of the demo story
+venv/bin/python harness/import_transcripts.py <session-id> ... # any session of this project
+```
+
+![Claude Code sessions in Aura](screenshots/setup/aura-8-history.png)
+
+## Step 7: talk to it, then look at Aura
 
 Tell Claude Code something worth remembering (or run the scripted story:
 `venv/bin/python demo/run_sessions.py --backend aura`). In Aura console → **Query**:
@@ -91,7 +118,7 @@ ORDER BY written_by, relation
 
 ![Ontology at work](screenshots/setup/aura-4-ontology-relations.png)
 
-## Step 7: dashboard and eval
+## Step 8: dashboard and eval
 
 ```bash
 venv/bin/python eval/eval_memory.py --variants no_memory haystack_aura claude_code_aura   # results -> Aura
@@ -116,3 +143,4 @@ Value: add the other three types; "Relationship types" → Value: add `agent` (s
 - **Direction is lost when reading relations back** on Bolt: `get_related_entities` matches `-[:RELATED_TO]-` both ways
   and sets `source_id` to the queried entity. The demo's Haystack tool prints relations undirected.
 - `graph_query` (raw read-only Cypher) can read everything in the database, not only memory. The demo disables it.
+- No session capture of its own: the MCP server stores what the agent sends. Step 6 adds it with Claude Code hooks.

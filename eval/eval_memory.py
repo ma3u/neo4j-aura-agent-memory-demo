@@ -77,7 +77,8 @@ def claude_answer(question: str, backend: str) -> str:
     args[args.index("--settings") + 1] = json.dumps(cfg["read_only_settings"])  # NAMS hooks off: they would store it
     cmd = ["claude", "-p", ASK.format(question=question), "--output-format", "json", "--model", "sonnet",
            "--strict-mcp-config", "--setting-sources", "project", *args]
-    out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=600, env={**os.environ, **cfg["env"]})
+    env = {**os.environ, **cfg["env"], **cfg["read_only_env"]}
+    out = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=600, env=env)
     return json.loads(out.stdout).get("result") or f"(no answer: {out.stderr[-200:]})"
 
 

@@ -15,7 +15,7 @@
         {
           "id": "memory-neo-j-agent-memory-intro",
           "title": "Agent memory on Neo4j Aura",
-          "query": "**Claude Code with long-term memory in Neo4j Aura**, through the Neo4j Labs SDK\n[neo4j-agent-memory](https://neo4j.com/labs/agent-memory/) and its MCP server (Bolt backend). Three separate Claude Code\nsessions (briefing, correction, question) share nothing but this graph; extraction follows the shared ontology\n\"Agent Memory + Software Team\". Haystack evaluates it against NAMS (memory.neo4jlabs.com) on 10 questions.\nCode: [github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)",
+          "query": "**Claude Code with long-term memory in Neo4j Aura**, through the Neo4j Labs SDK\n[neo4j-agent-memory](https://neo4j.com/labs/agent-memory/) and its MCP server (Bolt backend). Three separate Claude Code\nsessions (briefing, correction, question) share nothing but this graph, captured by Claude Code hooks; extraction follows the shared ontology\n\"Agent Memory + Software Team\". Haystack evaluates it against NAMS (memory.neo4jlabs.com) on 10 questions.\nCode: [github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)",
           "x": 0,
           "y": 0,
           "width": 24,
@@ -118,6 +118,51 @@
           "height": 6,
           "type": "table",
           "selection": {},
+          "settings": {}
+        }
+      ]
+    },
+    {
+      "title": "History (Claude Code)",
+      "reports": [
+        {
+          "id": "history-claude-code-h1",
+          "title": "Claude Code sessions captured in Aura (agent-memory-hook)",
+          "query": "MATCH (c:Conversation)-[:HAS_MESSAGE]->(u:Message {role: 'user'})\nOPTIONAL MATCH (c)-[:HAS_MESSAGE]->(a:Message {role: 'assistant'})\nOPTIONAL MATCH (t:ReasoningTrace {session_id: c.session_id})-[:HAS_STEP]->(:ReasoningStep)-[:USES_TOOL]->(tc:ToolCall)\nWITH c, u, a, count(DISTINCT tc) AS tool_calls\nRETURN left(c.session_id, 8) AS session, left(u.content, 90) AS prompt, left(a.content, 140) AS answer, tool_calls,\n       CASE WHEN u.metadata CONTAINS 'agent-memory-hook' THEN 'hook (live)'\n            WHEN u.metadata CONTAINS 'import_transcripts' THEN 'imported transcript' ELSE 'agent via MCP' END AS captured_by,\n       u.timestamp AS ts\nORDER BY ts",
+          "x": 0,
+          "y": 0,
+          "width": 24,
+          "height": 4,
+          "type": "table",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "history-claude-code-h2",
+          "title": "Day 2 as a reasoning trace: prompt -> steps -> tool calls",
+          "query": "MATCH p = (:Message)<-[:INITIATED_BY]-(t:ReasoningTrace)-[:HAS_STEP]->(:ReasoningStep)-[:USES_TOOL]->(:ToolCall)-[:INSTANCE_OF]->(:Tool)\nWHERE t.task STARTS WITH 'Update from Mara'\nRETURN p",
+          "x": 0,
+          "y": 4,
+          "width": 14,
+          "height": 6,
+          "type": "graph",
+          "selection": {},
+          "settings": {}
+        },
+        {
+          "id": "history-claude-code-h3",
+          "title": "Tool calls per tool",
+          "query": "MATCH (t:Tool)\nRETURN replace(t.name, 'mcp__agent-memory__', '') AS tool, t.total_calls AS calls\nORDER BY calls DESC",
+          "x": 14,
+          "y": 4,
+          "width": 10,
+          "height": 6,
+          "type": "bar",
+          "selection": {
+            "index": "tool",
+            "value": "calls",
+            "key": "(none)"
+          },
           "settings": {}
         }
       ]

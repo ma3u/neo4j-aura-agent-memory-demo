@@ -40,7 +40,30 @@ MATCH (f:Fact)
 RETURN f.subject AS subject, f.predicate AS predicate, f.object AS object, toString(f.valid_from) AS valid_from
 ORDER BY subject;
 
-// ===== Page 2: Ontology =====
+// ===== Page 2: History (Claude Code sessions, captured by bin/agent-memory-hook) =====
+
+// H1 (table): every Claude Code session: prompt, answer, tool calls, how it was captured
+MATCH (c:Conversation)-[:HAS_MESSAGE]->(u:Message {role: 'user'})
+OPTIONAL MATCH (c)-[:HAS_MESSAGE]->(a:Message {role: 'assistant'})
+OPTIONAL MATCH (t:ReasoningTrace {session_id: c.session_id})-[:HAS_STEP]->(:ReasoningStep)-[:USES_TOOL]->(tc:ToolCall)
+WITH c, u, a, count(DISTINCT tc) AS tool_calls
+RETURN left(c.session_id, 8) AS session, left(u.content, 90) AS prompt, left(a.content, 140) AS answer, tool_calls,
+       CASE WHEN u.metadata CONTAINS 'agent-memory-hook' THEN 'hook (live)'
+            WHEN u.metadata CONTAINS 'import_transcripts' THEN 'imported transcript' ELSE 'agent via MCP' END AS captured_by,
+       u.timestamp AS ts
+ORDER BY ts;
+
+// H2 (graph): the day-2 correction as a reasoning trace: prompt -> trace -> steps -> tool calls -> tools
+MATCH p = (:Message)<-[:INITIATED_BY]-(t:ReasoningTrace)-[:HAS_STEP]->(:ReasoningStep)-[:USES_TOOL]->(:ToolCall)-[:INSTANCE_OF]->(:Tool)
+WHERE t.task STARTS WITH 'Update from Mara'
+RETURN p;
+
+// H3 (bar): tool usage across all captured sessions
+MATCH (t:Tool)
+RETURN replace(t.name, 'mcp__agent-memory__', '') AS tool, t.total_calls AS calls
+ORDER BY calls DESC;
+
+// ===== Page 3: Ontology =====
 
 // O1 (bar): entities per type label (POLE label next to :Entity)
 MATCH (e:Entity) UNWIND [l IN labels(e) WHERE l <> 'Entity'] AS label
@@ -58,7 +81,7 @@ RETURN a.name + ' -' + r.type + '-> ' + b.name AS relationship, r.confidence AS 
        left(coalesce(r.evidence[0], ''), 160) AS evidence
 ORDER BY confidence DESC;
 
-// ===== Page 3: Eval (Haystack) =====
+// ===== Page 4: Eval (Haystack) =====
 
 // E1 (bar): accuracy per variant
 MATCH (v:DemoEvalVariant)-[a:ANSWERED]->()

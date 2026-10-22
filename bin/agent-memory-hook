@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""
+Claude Code hook: capture the session into Neo4j Aura through neo4j-agent-memory (the Aura counterpart of nams-hooks).
+
+Configured in .claude/settings.json for SessionStart, UserPromptSubmit, PostToolUse and Stop. Reads the hook payload
+from stdin and forwards it to the local daemon (harness/aura_hooks_daemon.py), starting it if needed. On
+UserPromptSubmit it prints the recalled memory as additionalContext. Standard library only, so it starts fast.
+
+Never blocks Claude: any error is logged to $TMPDIR/agent-memory-hook.log and the hook exits 0.
+Off with AGENT_MEMORY_HOOKS=0 (the demo runner sets it for NAMS runs and for the read-only eval).
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+PORT = int(os.getenv("AGENT_MEMORY_HOOKS_PORT", "8787"))
+URL = f"http://127.0.0.1:{PORT}"
+LOG = Path(tempfile.gettempdir()) / "agent-memory-hook.log"
+
+
+def call(payload=None, timeout=60):
+    data = json.dumps(payload).encode() if payload is not None else None
+    req = urllib.request.Request(URL, data=data, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read() or b"{}")
+
+
+def ensure_daemon() -> None:
+    try:
+        call(timeout=2)
+        return
+    except OSError:
+        pass
+    with open(LOG, "a") as log:
+        subprocess.Popen([str(ROOT / "venv/bin/python"), str(ROOT / "harness/aura_hooks_daemon.py")], cwd=ROOT,
+                         stdout=log, stderr=log, stdin=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(120):  # first start loads the SDK and the embedding model
+        time.sleep(1)
+        try:
+            call(timeout=2)
+            return
+        except OSError:
+            continue
+    raise RuntimeError("daemon did not start, see " + str(LOG))
+
+
+def last_answer(payload: dict) -> str:
+    """Final assistant text of the turn: from the Stop payload, else from the transcript."""
+    if payload.get("last_assistant_message"):
+        return payload["last_assistant_message"]
+    texts = []
+    path = payload.get("transcript_path")
+    if path and Path(path).exists():
+        for line in Path(path).read_text().splitlines():
+            rec = json.loads(line)
+            if rec.get("type") == "user" and isinstance((rec.get("message") or {}).get("content"), str):
+                texts = []  # a new prompt starts a new turn
+            if rec.get("type") == "assistant":
+                content = (rec.get("message") or {}).get("content") or []
+                texts += [c["text"] for c in content if isinstance(c, dict) and c.get("type") == "text"]
+    return "\n".join(texts).strip()
+
+
+def main() -> None:
+    if os.getenv("AGENT_MEMORY_HOOKS", "1") == "0":
+        return
+    payload = json.load(sys.stdin)
+    kind = payload.get("hook_event_name")
+    ensure_daemon()
+    if kind == "SessionStart":
+        return
+    event = {"event": kind, "session_id": payload.get("session_id"), "cwd": payload.get("cwd")}
+    if kind == "UserPromptSubmit":
+        event["prompt"] = payload.get("prompt", "")
+        context = call(event).get("context", "")
+        if context and not context.startswith("No memories"):
+            print(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "UserPromptSubmit",
+                "additionalContext": "Relevant long-term memory (Neo4j Agent Memory on Aura):\n" + context[:6000],
+            }}))
+    elif kind == "PostToolUse":
+        event.update(tool_name=payload.get("tool_name"), tool_input=payload.get("tool_input"),
+                     tool_response=payload.get("tool_response"))
+        call(event)
+    elif kind == "Stop":
+        event["answer"] = last_answer(payload)
+        call(event)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:  # a memory hook must never break the session
+        with open(LOG, "a") as log:
+            log.write(f"{time.strftime('%F %T')} {type(e).__name__}: {e}\n")
+    sys.exit(0)

@@ -2,7 +2,9 @@
 Headless Claude Code flags per memory backend, shared by demo/run_sessions.py and eval/eval_memory.py.
 
   aura  Neo4j Labs Agent Memory (neo4j-agent-memory) on your Neo4j Aura instance: the SDK's own MCP server
-        (bin/agent-memory-mcp -> `neo4j-agent-memory mcp serve --backend bolt`). nams-hooks is switched off.
+        (bin/agent-memory-mcp -> `neo4j-agent-memory mcp serve --backend bolt`) plus bin/agent-memory-hook, which
+        stores every prompt, answer and tool call and injects recalled memory (the Aura counterpart of nams-hooks).
+        nams-hooks is switched off.
   nams  Neo4j Agent Memory Service (memory.neo4jlabs.com): the nams-hooks plugin (enabled in .claude/settings.json)
         stores every prompt and answer and injects recalled memory into each prompt, and the hosted NAMS MCP server
         (demo/nams-mcp.json, key from NAMS_API_KEY) gives the agent explicit memory tools.
@@ -12,8 +14,8 @@ Isolation, so a run measures the memory backend and nothing else:
     The env var alone did not stop it in headless runs, so the settings flag is set too.
   - No file, shell or web tools: a session must not read the answers from this repo or write notes to disk.
   - No raw Cypher (`graph_query`) or full export on Aura: the database also holds the eval's reference answers.
-  - Eval runs are read-only: only search/get tools, and on NAMS the hooks are off. Otherwise every eval question and
-    answer is stored by the hooks and becomes memory for the next question.
+  - Eval runs are read-only: only search/get tools, and all hooks are off (nams-hooks and agent-memory-hook).
+    Otherwise every eval question and answer is stored and becomes memory for the next question.
 """
 import json
 import os
@@ -25,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 ISOLATION = ["--disallowedTools", "Read,Grep,Glob,LS,Write,Edit,MultiEdit,NotebookEdit,Bash,WebFetch,WebSearch,Task,Agent"]
 NO_AUTO_MEMORY = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+AURA_HOOKS_OFF = {"AGENT_MEMORY_HOOKS": "0"}  # read by bin/agent-memory-hook
 
 AURA_MCP = ROOT / "demo" / "aura-mcp.json"  # generated: absolute path to the launcher, git-ignored
 AURA_TOOLS = ["memory_store_message", "memory_add_entity", "memory_create_relationship", "memory_add_fact",
@@ -56,7 +59,8 @@ BACKENDS = {
                  *ISOLATION],
         "read_only_tools": tool_names("agent-memory", AURA_READ_TOOLS),
         "read_only_settings": {"autoMemoryEnabled": False, "enabledPlugins": {"nams-hooks@nams-plugins": False}},
-        "env": NO_AUTO_MEMORY,
+        "env": {**NO_AUTO_MEMORY, "AGENT_MEMORY_HOOKS": "1"},
+        "read_only_env": AURA_HOOKS_OFF,
     },
     "nams": {
         "server": "nams",
@@ -64,7 +68,8 @@ BACKENDS = {
                  "--settings", json.dumps({"autoMemoryEnabled": False}), *ISOLATION],
         "read_only_tools": tool_names("nams", NAMS_READ_TOOLS),
         "read_only_settings": {"autoMemoryEnabled": False, "enabledPlugins": {"nams-hooks@nams-plugins": False}},
-        "env": {**NO_AUTO_MEMORY, "NAMS_API_KEY": os.getenv("NAMS_API_KEY", ""),
+        "env": {**NO_AUTO_MEMORY, **AURA_HOOKS_OFF, "NAMS_API_KEY": os.getenv("NAMS_API_KEY", ""),
                 "NAMS_BASE_URL": os.getenv("NAMS_BASE_URL", "https://memory.neo4jlabs.com")},
+        "read_only_env": AURA_HOOKS_OFF,
     },
 }

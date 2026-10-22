@@ -1,8 +1,8 @@
 """
 Smoke test for both setups. Read-only: nothing is written to Aura or NAMS. Run it before the live demo.
 
-  Aura   connection, SDK schema and memory, the SDK's MCP server (starts, lists its tools), the Haystack tool
-         (neo4j-agent-memory over Bolt) answers the day-3 question's facts, eval results stored
+  Aura   connection, SDK schema and memory, Claude Code session history (agent-memory-hook), the SDK's MCP server
+         (starts, lists its tools), the Haystack tool (neo4j-agent-memory over Bolt) finds the day-3 facts, eval results
   NAMS   API key, active ontology, conversations captured from Claude Code, the hosted MCP server lists its tools,
          the Haystack tool (neo4j-agent-memory, NAMS backend) finds the entities, hooks plugin enabled
   both   the ontology file is valid for the SDK
@@ -63,10 +63,11 @@ def aura_graph() -> None:
             owners = [r["o"] for r in s.run("MATCH (p:Entity)-[:RELATED_TO {type: 'OWNS'}]->(:Entity {name: 'fraud-api'}) RETURN p.name AS o")]
             check("correction stored (Lena OWNS fraud-api)", "Lena" in owners, f"owners: {', '.join(owners)}")
             msgs = n("MATCH (m:Message) RETURN count(m)")
-            # The SDK's MCP server has no hooks: only messages the agent explicitly stores (memory_store_message) land
-            # here, not the full Claude Code session history (NAMS captures that through nams-hooks).
-            check("messages the agent stored explicitly in Aura (no automatic session capture)", msgs > 0,
-                  f"{n('MATCH (c:Conversation) RETURN count(c)')} conversations, {msgs} messages")
+            sessions = n("MATCH (c:Conversation) WHERE EXISTS { (c)-[:HAS_MESSAGE]->(:Message {role: 'user'}) } "
+                         "AND EXISTS { (c)-[:HAS_MESSAGE]->(:Message {role: 'assistant'}) } RETURN count(c)")
+            check("Claude Code session history in Aura (prompt + answer per session)", sessions >= 3, f"{sessions} sessions")
+            traces, calls = n("MATCH (t:ReasoningTrace) RETURN count(t)"), n("MATCH (tc:ToolCall) RETURN count(tc)")
+            check("tool calls as reasoning traces in Aura", traces >= 3 and calls > 0, f"{traces} traces, {calls} tool calls")
             variants = n("MATCH (v:DemoEvalVariant) RETURN count(v)")
             check("eval results stored in Aura", variants == 5, f"{variants} variants")
 
@@ -133,6 +134,13 @@ def nams_mcp() -> None:
     check("NAMS hosted MCP server lists its tools", len(tools) >= 40, f"{len(tools)} tools")
 
 
+def aura_hooks() -> None:
+    hooks = json.loads((ROOT / ".claude/settings.json").read_text()).get("hooks", {})
+    wired = all(any("agent-memory-hook" in h["command"] for m in hooks.get(e, []) for h in m["hooks"])
+                for e in ("SessionStart", "UserPromptSubmit", "PostToolUse", "Stop"))
+    check("agent-memory-hook wired for SessionStart, UserPromptSubmit, PostToolUse, Stop", wired)
+
+
 def nams_plugin() -> None:
     settings = json.loads((ROOT / ".claude/settings.json").read_text())
     check("nams-hooks plugin enabled for this repo", settings.get("enabledPlugins", {}).get("nams-hooks@nams-plugins") is True)
@@ -143,6 +151,7 @@ def main() -> None:
     print("Aura (neo4j-agent-memory)")
     safely("Aura graph", aura_graph)
     safely("SDK MCP server", aura_mcp)
+    safely("agent-memory-hook", aura_hooks)
     safely("Haystack tool (aura)", lambda: haystack_tool("aura", ["Lena", "Ines"]))
     print("NAMS")
     safely("NAMS API", nams_api)

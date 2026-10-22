@@ -18,7 +18,7 @@ OUT = HERE / "aura_dashboard.json"
 
 INTRO = """**Claude Code with long-term memory in Neo4j Aura**, through the Neo4j Labs SDK
 [neo4j-agent-memory](https://neo4j.com/labs/agent-memory/) and its MCP server (Bolt backend). Three separate Claude Code
-sessions (briefing, correction, question) share nothing but this graph; extraction follows the shared ontology
+sessions (briefing, correction, question) share nothing but this graph, captured by Claude Code hooks; extraction follows the shared ontology
 "Agent Memory + Software Team". Haystack evaluates it against NAMS (memory.neo4jlabs.com) on 10 questions.
 Code: [github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)"""
 
@@ -36,6 +36,11 @@ PAGES = {
         ("A6", "table", "The correction: who owns fraud-api?", 0, 10, 12, 3, {}),
         ("A7", "table", "Relationships: ontology extraction vs agent", 0, 13, 7, 6, {}),
         ("A8", "table", "Facts", 7, 13, 5, 6, {}),
+    ],
+    "History (Claude Code)": [
+        ("H1", "table", "Claude Code sessions captured in Aura (agent-memory-hook)", 0, 0, 12, 4, {}),
+        ("H2", "graph", "Day 2 as a reasoning trace: prompt -> steps -> tool calls", 0, 4, 7, 6, {}),
+        ("H3", "bar", "Tool calls per tool", 7, 4, 5, 6, {"index": "tool", "value": "calls", "key": "(none)"}),
     ],
     "Ontology": [
         ("O1", "bar", "Entities per type", 0, 0, 5, 4, {"index": "label", "value": "entities", "key": "(none)"}),

@@ -13,7 +13,8 @@ when it doesn't? With the memory as a graph in Neo4j that other agents and dashb
 | What | Neo4j Labs open-source SDK [`neo4j-agent-memory`](https://neo4j.com/labs/agent-memory/) 0.7.0 with **its own MCP server** (16 tools), Bolt backend | hosted [Neo4j Agent Memory Service](https://memory.neo4jlabs.com): hosted MCP server (47 tools) + `nams-hooks` plugin |
 | Where the graph lives | **your Neo4j Aura instance**, next to your data | a NAMS workspace (managed Aura, or bring your own) |
 | Extraction | in the SDK (LLM via LiteLLM), driven by the ontology file | in NAMS (background workers), driven by the workspace ontology |
-| Claude Code | `.mcp.json` → `bin/agent-memory-mcp` | `.mcp.json` → `https://memory.neo4jlabs.com/mcp` (OAuth) + hooks |
+| Claude Code | `.mcp.json` → `bin/agent-memory-mcp` + `bin/agent-memory-hook` (session capture + recall) | `.mcp.json` → `https://memory.neo4jlabs.com/mcp` (OAuth) + `nams-hooks` |
+| Session history | every prompt, answer and tool call as messages + reasoning traces in Aura | every prompt and answer as conversations in NAMS |
 | You see it in | Aura console: Query, Bloom, **Dashboards** | NAMS console: Entity Explorer, Memory Browser, Review |
 | Setup guide | **[docs/setup-aura.md](docs/setup-aura.md)** | **[docs/setup-nams.md](docs/setup-nams.md)** |
 
@@ -36,6 +37,10 @@ A fictional team (so no model can answer from pre-training), told to Claude Code
 | Day 1 | Briefing: payments team at Kestrel Labs, checkout-service (FastAPI, Aura `orders-graph`, eu-central-1), fraud-api owned by **Jonas**, Jonas and Lena report to Ines (CTO), ADR-007, release freeze 30 October | store it |
 | Day 2 | "fraud-api is owned by **Lena** now, not Jonas" | update it |
 | Day 3 | "I'm changing how checkout-service calls fraud scoring: who do I talk to, who is their manager, any deadline?" | answer with 2 hops + the correction: **Lena → Ines, freeze 30 October** |
+
+Both backends keep the full Claude Code session history: `nams-hooks` for NAMS, [bin/agent-memory-hook](bin/agent-memory-hook)
+for Aura (the SDK's MCP server alone stores only what the agent sends; the three demo sessions were imported from their
+transcripts with [harness/import_transcripts.py](harness/import_transcripts.py)).
 
 Each session is a fresh headless `claude -p` with **no** chat history, **no** Claude Code file memory and **no**
 file/shell/web tools ([harness/claude_backends.py](harness/claude_backends.py)). Transcripts:
@@ -84,6 +89,9 @@ questions and one run, one answer is 10 points.
 
 ![Eval](docs/screenshots/setup/aura-6-eval.png)
 
+After importing the three Claude Code sessions into Aura (prompts, answers, 30 tool calls) the two Aura variants were
+rerun: still 100 %, and the eval left the memory untouched (hooks off, read-only tools).
+
 Results go to Aura as `(:DemoEvalVariant)-[:ANSWERED {correct, answer, reason}]->(:DemoEvalQuestion)` and onto the
 dashboard. Raw answers and judge reasons: [eval/results/eval_results.json](eval/results/eval_results.json).
 
@@ -91,12 +99,12 @@ dashboard. Raw answers and judge reasons: [eval/results/eval_results.json](eval/
 
 [dashboard/dashboard.cypher](dashboard/dashboard.cypher) → [dashboard/build_dashboard.py](dashboard/build_dashboard.py)
 → Aura console → Dashboards → Import. Live (project members):
-**[Agent Memory on Neo4j Aura](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/5liMFJOPMbPfXN4fxBwy)** and the workshop's
+**[Agent Memory on Neo4j Aura](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/yCfaWsVBltViYPw7jRcS)** and the workshop's
 [Haystack GraphRAG on Neo4j](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/oZVFPdtMHufwLxAT7hbo).
 
-| Ontology page | Eval page |
+| History page (Claude Code sessions) | Ontology page |
 |---|---|
-| ![Ontology](docs/screenshots/setup/aura-7-ontology.png) | ![Eval](docs/screenshots/setup/aura-6-eval.png) |
+| ![History](docs/screenshots/setup/aura-8-history.png) | ![Ontology](docs/screenshots/setup/aura-7-ontology.png) |
 
 The workshop dashboard this demo builds on (GraphRAG vs. vector RAG on the same Aura instance):
 
@@ -146,8 +154,9 @@ via `/mcp`, and tell it something worth remembering.
 | Path | What |
 |---|---|
 | [bin/agent-memory-mcp](bin/agent-memory-mcp) | starts the SDK's MCP server on Aura (`neo4j-agent-memory mcp serve --backend bolt`) |
+| [bin/agent-memory-hook](bin/agent-memory-hook) | Claude Code hook: captures sessions into Aura through the SDK, injects recall (daemon: `harness/aura_hooks_daemon.py`, importer: `harness/import_transcripts.py`) |
 | [ontology/](ontology/) | the shared ontology (NAMS "Agent Memory" template + software team) |
-| [harness/](harness/) | Claude Code flags per backend, the SDK as a Haystack tool, the LLM factory |
+| [harness/](harness/) | Claude Code flags per backend, the SDK as a Haystack tool, the hook daemon, the transcript importer, the LLM factory |
 | [demo/](demo/) | story, session runner, smoke test (`check_setup.py`), NAMS MCP config, transcripts |
 | [eval/](eval/) | questions, Haystack eval, results |
 | [dashboard/](dashboard/) | dashboard queries, generator, import JSON |

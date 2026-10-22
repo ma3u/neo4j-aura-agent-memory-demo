@@ -7,7 +7,7 @@ Run the demo story: three separate headless Claude Code sessions that share noth
 
 Backends (one at a time, so the result shows what each memory does on its own):
   aura  Neo4j Labs Agent Memory (neo4j-agent-memory) on your Neo4j Aura instance, through the SDK's MCP server
-        (bin/agent-memory-mcp). nams-hooks is switched off for these runs.
+        (bin/agent-memory-mcp) and bin/agent-memory-hook (session capture + recall). nams-hooks is off for these runs.
   nams  Neo4j Agent Memory Service: the nams-hooks plugin stores every prompt and answer and injects recalled
         memory into each prompt; the hosted NAMS MCP server gives the agent explicit memory tools.
 
@@ -24,6 +24,7 @@ import json
 import os
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -104,6 +105,18 @@ def main() -> None:
             print(f"  [{c['tool']}] {json.dumps(c['input'])[:300]}")
         print(f"\n{run['answer'].strip()}\n  ({run['turns']} turns, ${run['cost_usd']:.3f})")
         (out_dir / f"{session['id']}.md").write_text(to_markdown(session, args.backend, run))
+        if args.backend == "aura":
+            flush_hooks()
+
+
+def flush_hooks() -> None:
+    """Wait until bin/agent-memory-hook's daemon has written (and extracted) everything from the last session."""
+    req = urllib.request.Request(f"http://127.0.0.1:{os.getenv('AGENT_MEMORY_HOOKS_PORT', '8787')}",
+                                 data=json.dumps({"event": "flush"}).encode(), headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=600).read()
+    except OSError as e:
+        print(f"  (hook daemon not reachable: {e})")
 
 
 if __name__ == "__main__":

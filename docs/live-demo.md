@@ -7,7 +7,7 @@ project, the NAMS links for the workspace owner.
 
 | Check | How |
 |---|---|
-| Everything at once (read-only, ~1 min) | `venv/bin/python demo/check_setup.py` → `15/15 checks passed` |
+| Everything at once (read-only, ~1 min) | `venv/bin/python demo/check_setup.py` → `17/17 checks passed` |
 | Aura instance running | [Aura console → Instances](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/instances): `GraphRAG-agent-memory` **RUNNING** |
 | NAMS workspace alive (free DBs are removed after 2 days idle) | [NAMS dashboard](https://memory.neo4jlabs.com/dashboard), workspace `hacknight-demo` |
 | Claude Code sees both servers | `claude` in the repo → `/mcp`: `agent-memory` connected (16 tools), `nams` connected (47 tools; authenticate once) |
@@ -27,9 +27,11 @@ venv/bin/python demo/run_sessions.py --backend aura --only day-3
 ```
 
 **3. Memory 1: neo4j-agent-memory on Aura (60 s).**
-- [Aura dashboard](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/5liMFJOPMbPfXN4fxBwy) → "Agent Memory on Neo4j Aura": the
+- [Aura dashboard](https://console.neo4j.io/projects/326809f3-c351-4eb7-8770-fcf5d0b6adc1/studio/dashboards/yCfaWsVBltViYPw7jRcS) → "Agent Memory on Neo4j Aura": the
   memory graph, the day-3 path checkout-service → fraud-api → Lena → Ines, and the card "who owns fraud-api?"
   (both Jonas and Lena are live: the correction added, it did not retire).
+- History page: the three Claude Code sessions as conversations and reasoning traces (every tool call), captured by
+  `bin/agent-memory-hook`.
 - Ontology page: which relationships the ontology-driven extractor produced (`OWNS`, `REPORTS_TO`, `CALLS`, ...) and
   which the agent added itself, with the evidence sentence.
 - Say: *same Aura instance as the GraphRAG data from the workshop: memory sits next to your data, Cypher and
@@ -57,6 +59,7 @@ question type. See the [README](../README.md#evaluation-haystack) table.
 | Symptom | Fix |
 |---|---|
 | `agent-memory` not connected | `bin/agent-memory-mcp` by hand: needs `.env`; first start downloads the embedding model |
+| No recall injected / sessions not captured in Aura | `curl -s 127.0.0.1:8787` (daemon up?), log: `$TMPDIR/agent-memory-hook.log` |
 | Extraction errors mentioning `temperature` | `LITELLM_DROP_PARAMS=true` (set by the launcher) |
 | `nams` asks to authenticate | `/mcp` → `nams` → Authenticate (OAuth) |
 | NAMS workspace gone (2 days idle) | create a new one: [setup-nams.md](setup-nams.md) steps 1-3, rerun `demo/run_sessions.py --backend nams` |
