@@ -1,3 +1,5 @@
+<!-- markdownlint-configure-file { "MD033": { "allowed_elements": ["img"] } } -->
+
 # Live demo runbook (Graphs Gone Wild, 23 Oct 2026, demo pitches 20:00)
 
 Five minutes, two memories, one story. Everything below is clickable; the Aura links work for members of the Aura
@@ -56,11 +58,8 @@ question type. See the [README](../README.md#evaluation-haystack) table.
 
 ## Share the repository
 
-Show this QR code at the end of the pitch so the audience can open the code and setup guides:
-
-[![QR code for the GitHub repository](repo-qr.png)](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
-
-[github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+[<img src="repo-qr.png" alt="Repository QR code" width="160" height="160" align="middle">](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+Scan or open the [GitHub repository](https://github.com/ma3u/neo4j-aura-agent-memory-demo) for the code and setup guides.
 
 ## If something breaks
 

@@ -1,4 +1,4 @@
-<!-- markdownlint-configure-file { "MD033": { "allowed_elements": ["details", "summary"] } } -->
+<!-- markdownlint-configure-file { "MD033": { "allowed_elements": ["details", "summary", "img"] } } -->
 
 # Neo4j Agent Memory for Claude Code, Antigravity and GitHub Copilot
 
@@ -17,11 +17,8 @@ deadline matters? This demo stores that knowledge in Neo4j so another session, o
 
 ## Get the code
 
-Scan the QR code to open this repository:
-
-[![QR code for the GitHub repository](docs/repo-qr.png)](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
-
-[github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+[<img src="docs/repo-qr.png" alt="Repository QR code" width="160" height="160" align="middle">](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+Scan or open the [GitHub repository](https://github.com/ma3u/neo4j-aura-agent-memory-demo) for the code and setup guides.
 
 ## Choose a solution
 
