@@ -15,6 +15,14 @@ deadline matters? This demo stores that knowledge in Neo4j so another session, o
 [See the results](#final-results-what-to-take-away) · [Understand the story](#the-story) ·
 [Engineering notes](#what-we-learned-building-it).
 
+## Get the code
+
+Scan the QR code to open this repository:
+
+[![QR code for the GitHub repository](docs/repo-qr.png)](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+
+[github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+
 ## Choose a solution
 
 ### Option 1: neo4j-agent-memory on your Aura instance

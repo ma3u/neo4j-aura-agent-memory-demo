@@ -54,6 +54,14 @@ question type. See the [README](../README.md#evaluation-haystack) table.
 - Corrections are the hard part: both backends keep the old fact next to the new one today.
 - Test memory honestly: switch off the agent's own file memory and file access, or it "remembers" from elsewhere.
 
+## Share the repository
+
+Show this QR code at the end of the pitch so the audience can open the code and setup guides:
+
+[![QR code for the GitHub repository](repo-qr.png)](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+
+[github.com/ma3u/neo4j-aura-agent-memory-demo](https://github.com/ma3u/neo4j-aura-agent-memory-demo)
+
 ## If something breaks
 
 | Symptom | Fix |
