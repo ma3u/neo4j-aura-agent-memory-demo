@@ -35,6 +35,9 @@ setup: Python dependencies, credentials, model configuration and SDK maintenance
 
 **Start with:** [Set up the SDK on Aura](docs/setup-aura.md).
 
+**Official details:** [Self-hosted MCP tools and server profiles](https://neo4j.com/labs/agent-memory/reference/mcp-tools/)
+and [Bolt/NAMS capabilities and data scope](https://neo4j.com/labs/agent-memory/reference/backend-capabilities/).
+
 ### Option 2: NAMS, the hosted memory service
 
 **Choose this when you want to connect agents without operating the memory server or extraction workers.**
@@ -52,6 +55,9 @@ workspace UI over maintaining a local extraction pipeline. The tradeoff is depen
 operations, processing behavior, access scopes and current workspace limits. It does not expose every Bolt SDK feature.
 
 **Start with:** [Set up a NAMS workspace](docs/setup-nams.md).
+
+**Official details:** [Hosted NAMS OAuth and API-key authentication](https://neo4j.com/labs/agent-memory/reference/nams-mcp/#_authentication)
+and [API keys, workspaces and access scopes](https://neo4j.com/labs/agent-memory/reference/authentication/).
 
 ### Which should I use?
 
@@ -76,6 +82,7 @@ Both offerings are Neo4j Labs projects; do not assume a production support SLA.
 Both demo paths use **one ontology**, a vocabulary defining the allowed entity types and relationships
 ([ontology/](ontology/)). MCP gives the agent memory tools such as search and store. **Hooks are separate:** they
 capture conversations automatically. Connecting an MCP server alone does not record every prompt and answer.
+For access-control details, read the official [identity and retrieval scope reference](https://neo4j.com/labs/agent-memory/reference/backend-capabilities/#scope).
 
 ## Connect your agent
 
@@ -91,6 +98,8 @@ You do not need both backends. The repository includes configurations for both s
 
 The hosted HTTP connection does not require a local Python memory server. Python is needed for this demo's scripts
 and for the optional NAMS stdio proxy. Never put passwords or API keys in the shared MCP JSON.
+The SDK's [transport reference](https://neo4j.com/labs/agent-memory/reference/mcp-tools/#_transports) explains local
+stdio versus network HTTP; these are connection methods, separate from the database backend.
 
 Choose your client: [Claude Code](#claude-code) · [Antigravity](#antigravity-local-preview) ·
 [GitHub Copilot](#github-copilot).
@@ -110,6 +119,11 @@ Choose your client: [Claude Code](#claude-code) · [Antigravity](#antigravity-lo
 
 **What is verified:** the published demo used Claude Code to write memory and evaluated fresh Claude Code sessions
 reading it. The MCP server supplies tools; the capture hooks are a separate integration.
+
+**Official details:** [Project-scoped MCP configuration](https://code.claude.com/docs/en/mcp#project-scope),
+[local stdio servers](https://code.claude.com/docs/en/mcp#option-3-add-a-local-stdio-server),
+[remote OAuth sign-in](https://code.claude.com/docs/en/mcp#authenticate-with-remote-mcp-servers), and
+[hook configuration locations](https://code.claude.com/docs/en/hooks#hook-locations).
 
 ### Antigravity (local preview)
 
@@ -131,11 +145,19 @@ autodiscovery has not been verified.
 5. **Test retrieval.** Use the shared [read-only test prompt](#check-that-memory-is-really-used) and inspect the tool
    call. Verify an actual IDE session separately from the headless protocol adapter.
 
+**Official native-client details:** [MCP setup by Antigravity surface](https://antigravity.google/docs/mcp/#getting-started-by-surface),
+[MCP configuration fields](https://antigravity.google/docs/mcp/#mcp-configuration-structure),
+[supported hook events](https://antigravity.google/docs/hooks/#supported-events), and
+[PreInvocation context injection](https://antigravity.google/docs/hooks/#preinvocation).
+These describe Antigravity itself; they do not establish that this demo's adapter has passed a native IDE run.
+
 <details>
 <summary>Antigravity adapter commands and capture behavior</summary>
 
 The local runner uses a **Haystack agent over MCP** and emits Antigravity-shaped hook payloads. It tests the adapter
-protocol, not the Antigravity application's own agent runtime:
+protocol, not the Antigravity application's own agent runtime. Google's
+[native SDK MCP guide](https://antigravity.google/docs/sdk/mcp/) documents a separate programmatic integration.
+To exercise the local adapter:
 
 ```bash
 venv/bin/python demo/run_sessions.py --backend aura --harness antigravity
@@ -174,6 +196,10 @@ Code `nams-hooks` plugin is not needed by this adapter. Implementation: [harness
 read-only search returned demo evidence. **A Copilot Chat tool call and VS Code picker visibility remain unconfirmed.**
 No automatic Copilot session-capture hooks are installed; ask the agent to store information explicitly when needed.
 
+**Official details:** [Repository-level Copilot MCP configuration](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers#adding-per-repository-mcp-servers),
+[CLI server listing and inspection](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers#using-copilot-mcp-subcommands-from-the-terminal), and
+[VS Code configuration destinations](https://code.visualstudio.com/docs/agent-customization/mcp-servers#_choose-a-configuration-destination).
+
 <details>
 <summary>Copilot Global, VS Code configuration and the missing-server issue</summary>
 
@@ -204,8 +230,11 @@ workspace/profile entries and a full reload. Native Copilot Global discovery was
 that does not establish that the VS Code picker is fixed. Do not keep adding duplicate configurations as proof of
 success: verify a tool call in the intended client.
 
-Official references: [MCP setup](https://code.visualstudio.com/docs/copilot/customization/mcp-servers) and
-[configuration formats and destinations](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
+Official references: [Native Copilot user configuration](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers#editing-the-configuration-file),
+[portable JSON format](https://code.visualstudio.com/docs/agents/reference/mcp-configuration#_portable-configuration),
+[automatic discovery sources](https://code.visualstudio.com/docs/agents/reference/mcp-configuration#_automatic-mcp-server-discovery),
+[the destination used by `code --add-mcp`](https://code.visualstudio.com/docs/agents/reference/mcp-configuration#_command-line-installation), and
+[authentication and secret handling](https://code.visualstudio.com/docs/agents/reference/mcp-configuration#_authentication-and-secrets).
 
 </details>
 
@@ -223,6 +252,8 @@ Do not read repository files, run shell commands, or write new memory.
 Check that the intended server actually returned evidence. Missing facts should produce "I don't know", not a
 guess. On this shared demo database, leave `graph_query` disabled: a raw database read could see evaluation answers.
 During evaluation, also disable capture hooks so questions and answers do not become new memory.
+VS Code's [first-tool-call verification checklist](https://code.visualstudio.com/docs/agent-customization/mcp-servers#_verify-the-first-tool-call)
+shows how to distinguish a configured server from a working connection.
 
 **Test status:** the published scores below cover Claude Code and Haystack, not Copilot or a native Antigravity IDE
 run. Server discovery, successful retrieval and an end-to-end client integration are different levels of verification.
