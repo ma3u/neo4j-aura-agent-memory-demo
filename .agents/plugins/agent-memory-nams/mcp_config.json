@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "nams": {
+      "command": "/bin/sh",
+      "args": ["-c", "exec \"$(git rev-parse --show-toplevel)/bin/nams-mcp\""]
+    }
+  }
+}

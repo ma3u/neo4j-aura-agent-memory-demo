@@ -1,0 +1,6 @@
+{
+  "name": "agent-memory-nams",
+  "displayName": "Neo4j Agent Memory Service (NAMS)",
+  "version": "0.1.0",
+  "description": "Hosted Neo4j Agent Memory Service (memory.neo4jlabs.com): 47 MCP tools via bin/nams-mcp plus automatic session capture and recall hooks."
+}

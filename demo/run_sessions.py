@@ -1,24 +1,27 @@
 """
-Run the demo story: three separate headless Claude Code sessions that share nothing but long-term memory.
+Run the demo story: three separate headless sessions (Antigravity or Claude Code) that share nothing but long-term memory.
 
-  day-1  Mara briefs Claude Code about her project
+  day-1  Mara briefs the agent about her project
   day-2  Mara corrects a fact (fraud-api moved from Jonas to Lena)
   day-3  a question that needs 2 hops through the memory plus the correction
 
 Backends (one at a time, so the result shows what each memory does on its own):
   aura  Neo4j Labs Agent Memory (neo4j-agent-memory) on your Neo4j Aura instance, through the SDK's MCP server
-        (bin/agent-memory-mcp) and bin/agent-memory-hook (session capture + recall). nams-hooks is off for these runs.
-  nams  Neo4j Agent Memory Service: the nams-hooks plugin stores every prompt and answer and injects recalled
-        memory into each prompt; the hosted NAMS MCP server gives the agent explicit memory tools.
+        (bin/agent-memory-mcp) and bin/agent-memory-hook --backend aura (session capture + recall).
+  nams  Neo4j Agent Memory Service: in Antigravity, bin/nams-mcp and bin/agent-memory-hook --backend nams store
+        every prompt, answer and tool call and inject recalled memory; in Claude Code, the nams-hooks plugin and
+        demo/nams-mcp.json provide the same pair.
 
-Each session is `claude -p` with --strict-mcp-config and no file/shell/web tools (harness/claude_backends.py):
-no chat history, no Claude Code file memory, no peeking into this repo. Only the memory backend.
-Transcripts go to demo/transcripts/<backend>/<day>.md.
+Each session is isolated (harness/claude_backends.py): no chat history, no file memory, no peeking into this repo.
+Only the memory backend. Transcripts go to demo/transcripts/<backend>/<day>.md.
 
-Run:  venv/bin/python demo/run_sessions.py --backend aura      # use an Aura database without earlier memory
-      venv/bin/python demo/run_sessions.py --backend nams      # use a fresh NAMS workspace
+Run:  venv/bin/python demo/run_sessions.py --backend aura      # Antigravity MCP + hooks on Aura (default)
+      venv/bin/python demo/run_sessions.py --backend nams      # Antigravity MCP + hooks on NAMS
       venv/bin/python demo/run_sessions.py --backend aura --only day-3
+      venv/bin/python demo/run_sessions.py --backend aura --harness claude
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -33,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "harness"))
 load_dotenv(ROOT / ".env")
 
-from claude_backends import BACKENDS, write_aura_mcp_config  # noqa: E402
+from claude_backends import BACKENDS, run_antigravity, write_aura_mcp_config  # noqa: E402
 
 STORY = json.loads((ROOT / "demo" / "story.json").read_text())
 TRANSCRIPTS = ROOT / "demo" / "transcripts"
@@ -41,7 +44,7 @@ TARGET = {"aura": "neo4j-agent-memory MCP -> Neo4j Aura", "nams": "NAMS MCP -> m
 
 
 def run_claude(prompt: str, backend: str, model: str) -> dict:
-    """One headless session. Returns memory tool calls (name, input, result), the answer, turns and cost."""
+    """One headless Claude Code session. Returns memory tool calls (name, input, result), the answer, turns and cost."""
     cfg = BACKENDS[backend]
     prefix = f"mcp__{cfg['server']}__"
     cmd = ["claude", "-p", prompt, "--output-format", "stream-json", "--verbose", "--model", model,
@@ -70,7 +73,7 @@ def run_claude(prompt: str, backend: str, model: str) -> dict:
     }
 
 
-def to_markdown(session: dict, backend: str, run: dict) -> str:
+def to_markdown(session: dict, backend: str, run: dict, harness: str = "antigravity") -> str:
     lines = [f"# {session['title']} ({backend})", "", "**Prompt**", "", "> " + session["prompt"].replace("\n", "\n> "), ""]
     if run["calls"]:
         lines += [f"**Memory tool calls ({TARGET[backend]})**", ""]
@@ -78,15 +81,19 @@ def to_markdown(session: dict, backend: str, run: dict) -> str:
             args = ", ".join(f"{k}={v!r}" for k, v in c["input"].items())
             result = c["result"].strip().replace("\n", "\n    ")
             lines += [f"- `{c['tool']}({args})`", f"  - {result[:1500]}"]
-    if backend == "nams":
+    if harness == "antigravity":
+        lines += ["", f"_agent-memory-hook ({backend}) also stored this prompt, tool calls, and answer and injected recalled memory via PreInvocation._"]
+    elif backend == "nams":
         lines += ["", "_nams-hooks also stored this prompt and answer and injected recalled memory into the prompt._"]
-    lines += ["", "**Answer**", "", run["answer"].strip(), "", f"_{run['turns']} turns, ${run['cost_usd']:.3f}_", ""]
+    cost = run.get("cost_usd") or 0.0
+    lines += ["", "**Answer**", "", run["answer"].strip(), "", f"_{run['turns']} turns, ${cost:.3f}_", ""]
     return "\n".join(lines)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=list(BACKENDS), default="aura")
+    parser.add_argument("--harness", choices=["antigravity", "claude"], default="antigravity")
     parser.add_argument("--only", help="run one session id, e.g. day-3")
     parser.add_argument("--model", default="sonnet")
     args = parser.parse_args()
@@ -99,13 +106,17 @@ def main() -> None:
     for session in STORY["sessions"]:
         if args.only and session["id"] != args.only:
             continue
-        print(f"\n=== {session['title']} ({args.backend}) ===")
-        run = run_claude(session["prompt"], args.backend, args.model)
+        print(f"\n=== {session['title']} ({args.backend}, {args.harness}) ===")
+        if args.harness == "antigravity":
+            run = run_antigravity(session["prompt"], args.backend)
+        else:
+            run = run_claude(session["prompt"], args.backend, args.model)
         for c in run["calls"]:
             print(f"  [{c['tool']}] {json.dumps(c['input'])[:300]}")
-        print(f"\n{run['answer'].strip()}\n  ({run['turns']} turns, ${run['cost_usd']:.3f})")
-        (out_dir / f"{session['id']}.md").write_text(to_markdown(session, args.backend, run))
-        if args.backend == "aura":
+        cost = run.get("cost_usd") or 0.0
+        print(f"\n{run['answer'].strip()}\n  ({run['turns']} turns, ${cost:.3f})")
+        (out_dir / f"{session['id']}.md").write_text(to_markdown(session, args.backend, run, args.harness))
+        if args.harness == "antigravity" or args.backend == "aura":
             flush_hooks()
 
 

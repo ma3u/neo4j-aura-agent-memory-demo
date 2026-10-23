@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agent-memory": {
+      "command": "/bin/sh",
+      "args": ["-c", "exec \"$(git rev-parse --show-toplevel)/bin/agent-memory-mcp\""]
+    }
+  }
+}

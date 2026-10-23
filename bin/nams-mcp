@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Neo4j Agent Memory Service (NAMS) MCP server over stdio, for Antigravity and other stdio MCP hosts.
+# Loads NAMS_API_KEY from .env and proxies stdio to https://memory.neo4jlabs.com/mcp (47 tools),
+# so Antigravity and headless runs connect without interactive OAuth or inline secrets in JSON configs.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+set -a; [ -f .env ] && . ./.env; set +a
+
+exec venv/bin/python -c '
+import os, sys
+from fastmcp.client.transports import StreamableHttpTransport
+from fastmcp.server import create_proxy
+
+key = os.environ.get("NAMS_API_KEY")
+if not key:
+    sys.exit("NAMS_API_KEY is not set in .env")
+url = os.environ.get("NAMS_MCP_URL") or (os.environ.get("NAMS_BASE_URL", "https://memory.neo4jlabs.com").rstrip("/") + "/mcp")
+transport = StreamableHttpTransport(url=url, headers={"Authorization": f"Bearer {key}"})
+create_proxy(transport, name="nams").run(transport="stdio", show_banner=False)
+' "$@"

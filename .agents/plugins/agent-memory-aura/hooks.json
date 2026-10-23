@@ -1,0 +1,38 @@
+{
+  "agent-memory-aura": {
+    "enabled": true,
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "\"$(git rev-parse --show-toplevel)/bin/agent-memory-hook\" --backend aura --event SessionStart",
+        "timeout": 120
+      }
+    ],
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "\"$(git rev-parse --show-toplevel)/bin/agent-memory-hook\" --backend aura --event PreInvocation",
+        "timeout": 120
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/bin/agent-memory-hook\" --backend aura --event PostToolUse",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "\"$(git rev-parse --show-toplevel)/bin/agent-memory-hook\" --backend aura --event Stop",
+        "timeout": 120
+      }
+    ]
+  }
+}

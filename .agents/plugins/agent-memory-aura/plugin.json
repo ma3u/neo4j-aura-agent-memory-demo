@@ -1,0 +1,6 @@
+{
+  "name": "agent-memory-aura",
+  "displayName": "Neo4j Agent Memory (Aura)",
+  "version": "0.7.0",
+  "description": "Neo4j Labs Agent Memory (neo4j-agent-memory) on your Neo4j Aura instance over Bolt: 16 MCP tools plus automatic session capture and recall hooks."
+}

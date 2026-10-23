@@ -1,24 +1,28 @@
 """
 Evaluate Neo4j agent memory with Haystack: does an agent in a NEW session answer correctly from what an earlier
-Claude Code session stored? Run demo/run_sessions.py for both backends first (it writes the memory).
+Antigravity or Claude Code session stored? Run demo/run_sessions.py for both backends first (it writes the memory).
 
 Questions (eval/questions.json): 4 single-hop, 3 multi-hop, 1 correction (Jonas -> Lena), 2 not-in-memory
 (the right answer is "I don't know": memory must not make an agent invent facts).
 
 Variants (same questions, same wording):
   no_memory          Haystack Agent, no tools                                 -> baseline: what the LLM knows alone
-  haystack_aura      Haystack Agent + neo4j-agent-memory SDK, Bolt to Aura    -> another framework reads Claude's memory
-  claude_code_aura   claude -p + the SDK's MCP server on Aura (read tools)    -> the MCP path, fresh session
+  haystack_aura      Haystack Agent + neo4j-agent-memory SDK, Bolt to Aura    -> another framework reads stored memory
+  antigravity_aura   Antigravity MCP (bin/agent-memory-mcp on Aura, read-only) -> the MCP path in Antigravity
+  claude_code_aura   claude -p + the SDK's MCP server on Aura (read tools)    -> the MCP path in Claude Code
   haystack_nams      Haystack Agent + neo4j-agent-memory SDK, NAMS backend    -> needs NAMS_API_KEY
+  antigravity_nams   Antigravity MCP (bin/nams-mcp on NAMS, read-only)        -> needs NAMS_API_KEY
   claude_code_nams   claude -p + hosted NAMS MCP (read tools, hooks off)      -> needs NAMS_API_KEY
 
 Scoring: LLM judge (Haystack chat generator, JSON mode) against the reference answer, like exercise 10 of
 the haystack-workshop. Results: eval/results/eval_results.json and, in Neo4j Aura,
 (:DemoEvalVariant)-[:ANSWERED {correct, answer, reason}]->(:DemoEvalQuestion) for the Aura dashboard.
 
-Run:  venv/bin/python eval/eval_memory.py                      # every variant whose backend is configured
-      venv/bin/python eval/eval_memory.py --variants no_memory haystack_aura
+Run:  venv/bin/python eval/eval_memory.py                      # every default variant whose backend is configured
+      venv/bin/python eval/eval_memory.py --variants antigravity_aura antigravity_nams
 """
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -41,7 +45,9 @@ from llm import chat_generator  # noqa: E402
 
 QUESTIONS = json.loads((ROOT / "eval" / "questions.json").read_text())
 RESULTS = ROOT / "eval" / "results" / "eval_results.json"
-VARIANTS = ["no_memory", "haystack_aura", "claude_code_aura", "haystack_nams", "claude_code_nams"]
+DEFAULT_VARIANTS = ["no_memory", "haystack_aura", "antigravity_aura", "haystack_nams", "antigravity_nams"]
+VARIANTS = ["no_memory", "haystack_aura", "antigravity_aura", "claude_code_aura",
+            "haystack_nams", "antigravity_nams", "claude_code_nams"]
 
 ASK = ("Using only your long-term memory about my project, answer briefly: {question}\n"
        "If your memory does not contain the answer, say that you don't know.")
@@ -104,6 +110,12 @@ def answers_for(variant: str) -> list[str]:
             return [haystack_answer(memory.tools(), q["question"]) for q in QUESTIONS]
         finally:
             memory.close()
+    if variant.startswith("antigravity_"):
+        from claude_backends import run_antigravity_batch
+
+        backend = variant.removeprefix("antigravity_")
+        prompts = [ASK.format(question=q["question"]) for q in QUESTIONS]
+        return run_antigravity_batch(prompts, backend, system_prompt=SYSTEM_PROMPT)
     from claude_backends import write_aura_mcp_config
 
     write_aura_mcp_config()
@@ -131,7 +143,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--variants", nargs="+", choices=VARIANTS)
     args = parser.parse_args()
-    variants = args.variants or [v for v in VARIANTS if "nams" not in v or os.getenv("NAMS_API_KEY")]
+    variants = args.variants or [v for v in DEFAULT_VARIANTS if "nams" not in v or os.getenv("NAMS_API_KEY")]
 
     results = json.loads(RESULTS.read_text()) if RESULTS.exists() else {"variants": {}}
     results["run_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

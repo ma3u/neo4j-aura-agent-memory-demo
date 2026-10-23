@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """
-Claude Code hook: capture the session into Neo4j Aura through neo4j-agent-memory (the Aura counterpart of nams-hooks).
+Antigravity & Claude Code hook: capture the session into Neo4j Aura (Bolt) or NAMS through neo4j-agent-memory,
+and inject recalled memory into each new turn.
 
-Configured in .claude/settings.json for SessionStart, UserPromptSubmit, PostToolUse and Stop. Reads the hook payload
-from stdin and forwards it to the local daemon (harness/aura_hooks_daemon.py), starting it if needed. On
-UserPromptSubmit it prints the recalled memory as additionalContext. Standard library only, so it starts fast.
+Configured in:
+  - .agents/hooks.json (Antigravity: SessionStart, PreInvocation, PostToolUse, Stop; --backend aura | nams)
+  - .claude/settings.json (Claude Code: SessionStart, UserPromptSubmit, PostToolUse, Stop)
 
-Never blocks Claude: any error is logged to $TMPDIR/agent-memory-hook.log and the hook exits 0.
-Off with AGENT_MEMORY_HOOKS=0 (the demo runner sets it for NAMS runs and for the read-only eval).
+Reads the hook payload from stdin and forwards it to the local daemon (harness/aura_hooks_daemon.py), starting it if
+needed. On PreInvocation (Antigravity) / UserPromptSubmit (Claude Code) it outputs recalled memory as an ephemeral
+message / additionalContext. Standard library only, so it starts fast.
+
+Never blocks the agent: any error is logged to $TMPDIR/agent-memory-hook.log and the hook exits 0 with valid JSON.
+Off with AGENT_MEMORY_HOOKS=0; restrict to one backend with AGENT_MEMORY_HOOKS_BACKEND=aura|nams.
 """
+from __future__ import annotations
+
+import argparse
 import json
 import os
 import subprocess
@@ -22,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PORT = int(os.getenv("AGENT_MEMORY_HOOKS_PORT", "8787"))
 URL = f"http://127.0.0.1:{PORT}"
 LOG = Path(tempfile.gettempdir()) / "agent-memory-hook.log"
+LABELS = {"aura": "Neo4j Agent Memory on Aura", "nams": "Neo4j Agent Memory Service (NAMS)"}
 
 
 def call(payload=None, timeout=60):
@@ -50,47 +59,135 @@ def ensure_daemon() -> None:
     raise RuntimeError("daemon did not start, see " + str(LOG))
 
 
+def clean_prompt(raw: str) -> str:
+    if "<USER_REQUEST>" in raw and "</USER_REQUEST>" in raw:
+        raw = raw.split("<USER_REQUEST>", 1)[1].split("</USER_REQUEST>", 1)[0]
+    return raw.strip()
+
+
+def _records(payload: dict) -> list[dict]:
+    path = payload.get("transcript_path") or payload.get("transcriptPath")
+    if not path or not Path(path).exists():
+        return []
+    return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
+
+
+def last_prompt(payload: dict) -> str:
+    if payload.get("prompt"):
+        return clean_prompt(payload["prompt"])
+    for rec in reversed(_records(payload)):
+        if rec.get("type") == "USER_INPUT" and rec.get("content"):
+            return clean_prompt(rec["content"])
+        if rec.get("type") == "user" and isinstance((rec.get("message") or {}).get("content"), str):
+            return clean_prompt(rec["message"]["content"])
+    return ""
+
+
+def last_tool_result(payload: dict):
+    if payload.get("tool_response") is not None:
+        return payload["tool_response"]
+    if payload.get("toolResponse") is not None:
+        return payload["toolResponse"]
+    if payload.get("error"):
+        return payload["error"]
+    for rec in reversed(_records(payload)):
+        if rec.get("type") == "GENERIC" and rec.get("content"):
+            return rec["content"]
+    return ""
+
+
 def last_answer(payload: dict) -> str:
-    """Final assistant text of the turn: from the Stop payload, else from the transcript."""
+    """Final assistant text of the turn: from payload, Antigravity transcript, or Claude Code transcript."""
     if payload.get("last_assistant_message"):
         return payload["last_assistant_message"]
     texts = []
-    path = payload.get("transcript_path")
-    if path and Path(path).exists():
-        for line in Path(path).read_text().splitlines():
-            rec = json.loads(line)
-            if rec.get("type") == "user" and isinstance((rec.get("message") or {}).get("content"), str):
-                texts = []  # a new prompt starts a new turn
-            if rec.get("type") == "assistant":
-                content = (rec.get("message") or {}).get("content") or []
-                texts += [c["text"] for c in content if isinstance(c, dict) and c.get("type") == "text"]
+    for rec in _records(payload):
+        if rec.get("type") == "USER_INPUT" or (
+            rec.get("type") == "user" and isinstance((rec.get("message") or {}).get("content"), str)
+        ):
+            texts = []  # a new prompt starts a new turn
+        elif rec.get("type") == "PLANNER_RESPONSE" and rec.get("content"):
+            texts.append(rec["content"])
+        elif rec.get("type") == "assistant":
+            content = (rec.get("message") or {}).get("content") or []
+            texts += [c["text"] for c in content if isinstance(c, dict) and c.get("type") == "text"]
     return "\n".join(texts).strip()
 
 
+def infer_event(payload: dict, explicit: str | None) -> str:
+    if explicit:
+        return explicit
+    if payload.get("hook_event_name"):
+        return payload["hook_event_name"]
+    if "toolCall" in payload:
+        return "PostToolUse"
+    if "terminationReason" in payload:
+        return "Stop"
+    if "invocationNum" in payload:
+        return "PreInvocation"
+    return "SessionStart"
+
+
+def reply_empty(is_antigravity: bool, kind: str) -> None:
+    if is_antigravity:
+        print(json.dumps({"decision": "allow"} if kind == "Stop" else {}))
+
+
 def main() -> None:
-    if os.getenv("AGENT_MEMORY_HOOKS", "1") == "0":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--backend", choices=("aura", "nams"), default=os.getenv("AGENT_MEMORY_BACKEND", "aura"))
+    parser.add_argument("--event", default=None)
+    args, _ = parser.parse_known_args()
+
+    raw = sys.stdin.read().strip()
+    payload = json.loads(raw) if raw else {}
+    is_antigravity = "conversationId" in payload or "workspacePaths" in payload or args.event is not None
+    kind = infer_event(payload, args.event)
+
+    active_filter = os.getenv("AGENT_MEMORY_HOOKS_BACKEND")
+    if os.getenv("AGENT_MEMORY_HOOKS", "1") == "0" or (active_filter and active_filter != args.backend):
+        reply_empty(is_antigravity, kind)
         return
-    payload = json.load(sys.stdin)
-    kind = payload.get("hook_event_name")
+
     ensure_daemon()
     if kind == "SessionStart":
+        reply_empty(is_antigravity, kind)
         return
-    event = {"event": kind, "session_id": payload.get("session_id"), "cwd": payload.get("cwd")}
-    if kind == "UserPromptSubmit":
-        event["prompt"] = payload.get("prompt", "")
-        context = call(event).get("context", "")
+
+    session_id = payload.get("conversationId") or payload.get("session_id") or "unknown"
+    cwd = (payload.get("workspacePaths") or [payload.get("cwd") or str(ROOT)])[0]
+    harness = "antigravity" if is_antigravity else "claude"
+    read_only = os.getenv("AGENT_MEMORY_HOOKS_READONLY") == "1"
+    event = {"event": kind, "backend": args.backend, "harness": harness, "session_id": session_id, "cwd": cwd,
+             "read_only": read_only}
+
+    if kind in ("UserPromptSubmit", "PreInvocation"):
+        if is_antigravity and payload.get("invocationNum", 1) > 1:
+            reply_empty(True, kind)
+            return
+        event["prompt"] = last_prompt(payload)
+        context = call(event).get("context", "") if event["prompt"] else ""
         if context and not context.startswith("No memories"):
-            print(json.dumps({"hookSpecificOutput": {
-                "hookEventName": "UserPromptSubmit",
-                "additionalContext": "Relevant long-term memory (Neo4j Agent Memory on Aura):\n" + context[:6000],
-            }}))
+            msg = f"Relevant long-term memory ({LABELS[args.backend]}):\n" + context[:6000]
+            if is_antigravity:
+                print(json.dumps({"injectSteps": [{"ephemeralMessage": msg}]}))
+            else:
+                print(json.dumps({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": msg}}))
+        else:
+            reply_empty(is_antigravity, kind)
     elif kind == "PostToolUse":
-        event.update(tool_name=payload.get("tool_name"), tool_input=payload.get("tool_input"),
-                     tool_response=payload.get("tool_response"))
+        tc = payload.get("toolCall") or {}
+        event.update(
+            tool_name=tc.get("name") or payload.get("tool_name") or payload.get("toolName"),
+            tool_input=tc.get("args") or payload.get("tool_input") or payload.get("toolInput"),
+            tool_response=last_tool_result(payload),
+        )
         call(event)
+        reply_empty(is_antigravity, kind)
     elif kind == "Stop":
         event["answer"] = last_answer(payload)
         call(event)
+        reply_empty(is_antigravity, kind)
 
 
 if __name__ == "__main__":
@@ -99,4 +196,5 @@ if __name__ == "__main__":
     except Exception as e:  # a memory hook must never break the session
         with open(LOG, "a") as log:
             log.write(f"{time.strftime('%F %T')} {type(e).__name__}: {e}\n")
+        print(json.dumps({"decision": "allow"} if "--event Stop" in " ".join(sys.argv) else {}))
     sys.exit(0)
